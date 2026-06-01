@@ -21,114 +21,122 @@ Plataforma web de consulta de rutas de transporte publico para Costa Rica. Permi
 
 ```
 506Tracker/
-|
-|-- backend/
-|   |-- aws/
-|   |   |-- __init__.py
-|   |   |-- cloudwatch_logger.py       # Logger centralizado hacia CloudWatch
-|   |   |-- lambda_handler.py          # Entry point para AWS Lambda via Mangum
-|   |   |-- s3_client.py               # Cliente S3 para assets y logs
-|   |   +-- secrets.py                 # Gestion de AWS Secrets Manager
-|   |
-|   |-- DB/
-|   |   |-- __init__.py
-|   |   |-- connection.py              # Conexion a MongoDB Atlas
-|   |   |-- indexes.py                 # Definicion de indices en colecciones
-|   |   +-- seed.py                    # Datos iniciales (rutas hardcodeadas CR)
-|   |
-|   |-- docker/
-|   |   |-- docker-compose.yml         # Orquestacion para desarrollo local
-|   |   |-- Dockerfile                 # Imagen del backend
-|   |   +-- mongo-init.js              # Script de inicializacion de MongoDB local
-|   |
-|   |-- middlewares/
-|   |   |-- auth_middleware.py         # Validacion de tokens JWT
-|   |   |-- cors_middleware.py         # Configuracion CORS
-|   |   +-- logging_middleware.py      # Log de requests y responses
-|   |
-|   |-- models/
-|   |   |-- ruta.py                    # Modelo Pydantic de Ruta
-|   |   |-- parada.py                  # Modelo Pydantic de Parada
-|   |   |-- usuario.py                 # Modelo Pydantic de Usuario
-|   |   +-- historial.py               # Modelo Pydantic de Historial
-|   |
-|   |-- routes/
-|   |   |-- rutas_router.py            # Endpoints de rutas de bus
-|   |   |-- paradas_router.py          # Endpoints de paradas
-|   |   |-- usuarios_router.py         # Endpoints de autenticacion
-|   |   +-- historial_router.py        # Endpoints de historial
-|   |
-|   |-- services/
-|   |   |-- ruta_service.py            # Logica de rutas y coordenadas
-|   |   |-- mapa_service.py            # Procesamiento de coordenadas para mapa
-|   |   |-- usuario_service.py         # Gestion de usuarios
-|   |   +-- historial_service.py       # Registro y consulta de historial
-|   |
-|   |-- test/
-|   |   |-- test_rutas.py
-|   |   |-- test_usuarios.py
-|   |   +-- test_historial.py
-|   |
-|   |-- utils/
-|   |   |-- jwt_utils.py               # Generacion y validacion JWT
-|   |   |-- response_utils.py          # Formato estandar de respuestas
-|   |   +-- validators.py              # Validaciones comunes
-|   |
-|   |-- .env
-|   |-- .gitignore
-|   |-- app.py                         # Instancia FastAPI principal
-|   |-- config.py                      # Configuracion centralizada
-|   +-- requirements.txt
-|
-|-- frontend/
-|   |-- public/
-|   |
-|   +-- src/
-|       |-- assets/
-|       |   |-- hero.png
-|       |   |-- react.svg
-|       |   +-- vite.svg
-|       |
-|       |-- components/
-|       |   |-- MapaRutas/
-|       |   |   |-- MapaRutas.jsx      # Mapa Leaflet con polylines de rutas CR
-|       |   |   +-- MapaRutas.css
-|       |   |-- BuscadorRutas/         # Busqueda por origen y destino
-|       |   |-- TarjetaRuta/           # Card de informacion de ruta
-|       |   |-- ListaParadas/          # Lista de paradas de una ruta
-|       |   +-- Navbar/
-|       |
-|       |-- hooks/
-|       |   |-- useRutas.js            # Hook para fetch de rutas
-|       |   +-- useHistorial.js        # Hook para historial de usuario
-|       |
-|       |-- lib/
-|       |   |-- api.js                 # Cliente Axios configurado
-|       |   +-- rutasData.js           # Coordenadas hardcodeadas de rutas CR
-|       |
-|       |-- pages/
-|       |   |-- Home/                  # Pagina principal con mapa
-|       |   |-- Rutas/                 # Listado de todas las rutas
-|       |   |-- DetalleRuta/           # Detalle y mapa de una ruta especifica
-|       |   |-- Historial/             # Historial de recorridos del usuario
-|       |   +-- Login/
-|       |
-|       |-- App.css
-|       |-- App.jsx
-|       |-- index.css
-|       +-- main.jsx
-|
-|   |-- .env
-|   |-- .gitignore
-|   |-- eslint.config.js
-|   |-- index.html
-|   |-- package.json
-|   |-- package-lock.json
-|   +-- vite.config.js
-|
-|-- .gitignore
-+-- README.md
-```
+│
+├── backend/
+│   │
+│   ├── app/
+│   │   │
+│   │   ├── aws/
+│   │   │   ├── __init__.py
+│   │   │   ├── cloudwatch_logger.py
+│   │   │   ├── lambda_handler.py
+│   │   │   ├── s3_client.py
+│   │   │   └── secrets.py
+│   │   │
+│   │   ├── DB/
+│   │   │   ├── __init__.py
+│   │   │   ├── connection.py
+│   │   │   ├── indexes.py
+│   │   │   └── seed.py
+│   │   │
+│   │   ├── middlewares/
+│   │   │   ├── auth_middleware.py
+│   │   │   ├── cors_middleware.py
+│   │   │   └── logging_middleware.py
+│   │   │
+│   │   ├── models/
+│   │   │   ├── ruta.py
+│   │   │   ├── parada.py
+│   │   │   ├── usuario.py
+│   │   │   └── historial.py
+│   │   │
+│   │   ├── routes/
+│   │   │   ├── rutas_router.py
+│   │   │   ├── paradas_router.py
+│   │   │   ├── usuarios_router.py
+│   │   │   └── historial_router.py
+│   │   │
+│   │   ├── services/
+│   │   │   ├── ruta_service.py
+│   │   │   ├── mapa_service.py
+│   │   │   ├── usuario_service.py
+│   │   │   └── historial_service.py
+│   │   │
+│   │   ├── test/
+│   │   │   ├── test_rutas.py
+│   │   │   ├── test_usuarios.py
+│   │   │   └── test_historial.py
+│   │   │
+│   │   ├── utils/
+│   │   │   ├── __init__.py
+│   │   │   ├── jwt_utils.py
+│   │   │   ├── response_utils.py
+│   │   │   └── validators.py
+│   │   │
+│   │   ├── __init__.py
+│   │   ├── app.py
+│   │   └── config.py
+│   │
+│   ├── docker/
+│   │   ├── docker-compose.yml
+│   │   ├── Dockerfile
+│   │   └── mongo-init.js
+│   │
+│   ├── .env
+│   ├── .gitignore
+│   └── requirements.txt
+│
+├── frontend/
+│   │
+│   ├── public/
+│   │
+│   └── src/
+│       │
+│       ├── assets/
+│       │   ├── hero.png
+│       │   ├── react.svg
+│       │   └── vite.svg
+│       │
+│       ├── components/
+│       │   ├── MapaRutas/
+│       │   │   ├── MapaRutas.jsx
+│       │   │   └── MapaRutas.css
+│       │   │
+│       │   ├── BuscadorRutas/
+│       │   ├── TarjetaRuta/
+│       │   ├── ListaParadas/
+│       │   └── Navbar/
+│       │
+│       ├── hooks/
+│       │   ├── useRutas.js
+│       │   └── useHistorial.js
+│       │
+│       ├── lib/
+│       │   ├── api.js
+│       │   └── rutasData.js
+│       │
+│       ├── pages/
+│       │   ├── Home/
+│       │   ├── Rutas/
+│       │   ├── DetalleRuta/
+│       │   ├── Historial/
+│       │   └── Login/
+│       │
+│       ├── App.css
+│       ├── App.jsx
+│       ├── index.css
+│       └── main.jsx
+│
+│   ├── .env
+│   ├── .gitignore
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   └── vite.config.js
+│
+├── .gitignore
+└── README.md
 
 ---
 
