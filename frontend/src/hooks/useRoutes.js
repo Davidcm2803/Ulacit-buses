@@ -4,7 +4,7 @@ import { rutas } from "../lib/routesData";
 /**
  * Hook de busqueda de rutas. De momento usa datos hardcodeados;
  * cuando el backend este listo, reemplazar el cuerpo de buscar()
- * por una llamada a la API (ver src/lib/api.js).
+ * por una llamada a la API usando fetch o axios desde el back.
  */
 export default function useRutas() {
   const [resultados, setResultados] = useState([]);

@@ -69,11 +69,11 @@ export const AuthModal = ({ onClose, onSuccess }) => {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleProvider = async (provider) => {
-    setError("Los proveedores externos estarán disponibles próximamente.");
+    setError("Los proveedores externos EXPLOTARON.");
   };
 
   const handleEmail = async () => {
-    setError("El inicio de sesión estará disponible próximamente.");
+    setError("El inicio de sesión servirá pronto.");
   };
 
   const switchMode = () => {
@@ -96,7 +96,6 @@ export const AuthModal = ({ onClose, onSuccess }) => {
             <X className="w-4 h-4" />
           </button>
 
-          {/* Header */}
           <div className="flex flex-col items-center gap-2 mb-8">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -111,7 +110,7 @@ export const AuthModal = ({ onClose, onSuccess }) => {
             </p>
           </div>
 
-          {/* Providers */}
+          {/* Providers firebase and microsoft */}
           <div className="flex flex-col gap-2">
             <ProviderBtn
               icon={<GoogleIcon />}
@@ -129,7 +128,6 @@ export const AuthModal = ({ onClose, onSuccess }) => {
 
           <Divider />
 
-          {/* Email form */}
           <div className="flex flex-col gap-3">
             {mode === "register" && (
               <Field

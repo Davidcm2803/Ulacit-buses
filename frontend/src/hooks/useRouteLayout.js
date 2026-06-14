@@ -6,8 +6,7 @@ const ORS_DIRECTIONS_URL =
 
 /**
  * Recibe un array de paradas con { lat, lng } y devuelve el trazado real
- * por calles usando OpenRouteService. Si falla, hace fallback a lineas
- * rectas entre las paradas.
+ * por calles usando OpenRouteService.
  *
  * @param {Array<{ lat: number, lng: number, nombre?: string }>} paradas
  * @returns {{ coordenadas: Array<{lat:number,lng:number}>, loading: boolean, error: string|null }}
@@ -27,7 +26,7 @@ export default function useTrazadoRuta(paradas = []) {
 
     if (!ORS_API_KEY) {
       setCoordenadas(lineaRecta);
-      setError("ORS_API_KEY no configurada, usando lineas rectas");
+      setError("ORS_API_KEY no configurada");
       return;
     }
 
@@ -53,7 +52,7 @@ export default function useTrazadoRuta(paradas = []) {
       .then((data) => {
         const geometry = data?.features?.[0]?.geometry?.coordinates;
         if (!geometry || geometry.length === 0) {
-          throw new Error("Respuesta de ORS sin geometria");
+          throw new Error("Respuesta de ORS sin rutas");
         }
         const decodificadas = geometry.map(([lng, lat]) => ({ lat, lng }));
         setCoordenadas(decodificadas);
