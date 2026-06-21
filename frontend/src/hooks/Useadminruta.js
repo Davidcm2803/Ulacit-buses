@@ -130,7 +130,7 @@ export default function useAdminRuta() {
     setTiempoMin(null);
     setError(null);
   }
-
+  //test
   async function generarTrazado() {
     const origen  = puntos.find((p) => p.tipo === "origen");
     const destino = puntos.find((p) => p.tipo === "destino");
