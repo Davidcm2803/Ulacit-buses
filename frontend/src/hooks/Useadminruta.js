@@ -1,35 +1,46 @@
 import { useState } from "react";
 
-const MAX_PARADAS = 10;
+const MAX_PARADAS   = 10;
 const MIN_DISTANCIA = 100;
-const ORS_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
-const ORS_KEY = import.meta.env.VITE_ORS_API_KEY;
-
-async function handleGuardar() {
-  if (!validateForm()) return;
-  const origen  = puntos.find((p) => p.tipo === "origen");
-  const destino = puntos.find((p) => p.tipo === "destino");
-  if (!origen || !destino) {
-    setError("Debes definir origen y destino en el mapa");
-    return;
-  }
-  if (trazado.length === 0) {
-    setError("Debes generar el trazado por calles antes de guardar");
-    return;
-  }
-  console.log("Guardar ruta:", { form, puntos, trazado, distanciaKm, tiempoMin });
-}
+const ORS_URL       = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
+const ORS_KEY       = import.meta.env.VITE_ORS_API_KEY;
 
 function distanciaMetros(a, b) {
-  const R = 6371000;
+  const R    = 6371000;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const s =
+  const s    =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((a.lat * Math.PI) / 180) *
-      Math.cos((b.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((b.lat * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+function reordenarPorProximidad(puntos) {
+  const origen  = puntos.find((p) => p.tipo === "origen");
+  const destino = puntos.find((p) => p.tipo === "destino");
+  const paradas = puntos.filter((p) => p.tipo === "parada");
+
+  if (!origen || paradas.length === 0) return puntos;
+
+  const ordenadas = [];
+  const pendientes = [...paradas];
+  let actual = origen;
+
+  while (pendientes.length > 0) {
+    let minDist = Infinity;
+    let minIdx  = 0;
+    pendientes.forEach((p, i) => {
+      const dist = distanciaMetros(actual, p);
+      if (dist < minDist) { minDist = dist; minIdx = i; }
+    });
+    ordenadas.push(pendientes[minIdx]);
+    actual = pendientes[minIdx];
+    pendientes.splice(minIdx, 1);
+  }
+
+  return [origen, ...ordenadas, ...(destino ? [destino] : [])];
 }
 
 export default function useAdminRuta() {
@@ -42,7 +53,7 @@ export default function useAdminRuta() {
   const [loading,     setLoading]     = useState(false);
   const [form,        setForm]        = useState({
     nombre: "", codigo: "", descripcion: "",
-    primer_bus: "4:30", ultimo_bus: "22:00",
+    primer_bus: "04:30", ultimo_bus: "22:00",
     frecuencia: "25", tarifa: "",
   });
   const [formErrors, setFormErrors] = useState({});
@@ -54,36 +65,51 @@ export default function useAdminRuta() {
 
   function handleMapClick(latlng) {
     setError(null);
+
     for (const p of puntos) {
       if (distanciaMetros(latlng, p) < MIN_DISTANCIA) {
         setError(`Demasiado cerca de otra parada (mínimo ${MIN_DISTANCIA}m)`);
         return;
       }
     }
+
     const paradasActuales = puntos.filter((p) => p.tipo === "parada").length;
     if (modo === "parada" && paradasActuales >= MAX_PARADAS) {
       setError(`Máximo ${MAX_PARADAS} paradas intermedias`);
       return;
     }
+
     if (modo === "origen"  && puntos.some((p) => p.tipo === "origen"))  return;
     if (modo === "destino" && puntos.some((p) => p.tipo === "destino")) return;
 
     const nuevoPunto = { ...latlng, tipo: modo };
+
     setPuntos((prev) => {
-      if (modo === "destino") return [...prev, nuevoPunto];
-      if (modo === "origen")  return [nuevoPunto, ...prev.filter((p) => p.tipo !== "origen")];
-      const destIdx = prev.findIndex((p) => p.tipo === "destino");
-      if (destIdx === -1) return [...prev, nuevoPunto];
-      const next = [...prev];
-      next.splice(destIdx, 0, nuevoPunto);
-      return next;
+      let next;
+      if (modo === "destino") {
+        next = [...prev, nuevoPunto];
+      } else if (modo === "origen") {
+        next = [nuevoPunto, ...prev.filter((p) => p.tipo !== "origen")];
+      } else {
+        const destIdx = prev.findIndex((p) => p.tipo === "destino");
+        if (destIdx === -1) next = [...prev, nuevoPunto];
+        else {
+          next = [...prev];
+          next.splice(destIdx, 0, nuevoPunto);
+        }
+      }
+      return reordenarPorProximidad(next);
     });
+
     if (modo === "origen")  setModo("parada");
     if (modo === "destino") setModo("parada");
   }
 
   function movePoint(index, latlng) {
-    setPuntos((prev) => prev.map((p, i) => (i === index ? { ...p, ...latlng } : p)));
+    setPuntos((prev) => {
+      const next = prev.map((p, i) => (i === index ? { ...p, ...latlng } : p));
+      return reordenarPorProximidad(next);
+    });
     setTrazado([]);
     setDistanciaKm(null);
     setTiempoMin(null);
@@ -121,6 +147,10 @@ export default function useAdminRuta() {
         headers: { Authorization: ORS_KEY, "Content-Type": "application/json" },
         body: JSON.stringify({ coordinates }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData?.error?.message || `Error ${res.status}`);
+      }
       const data  = await res.json();
       const geom  = data?.features?.[0]?.geometry?.coordinates;
       const props = data?.features?.[0]?.properties?.summary;
@@ -131,7 +161,11 @@ export default function useAdminRuta() {
         setTiempoMin(Math.round(props.duration / 60));
       }
     } catch (e) {
-      setError("No se pudo generar el trazado: " + e.message);
+      setError(
+        e.message.includes("404") || e.message.includes("2009")
+          ? "Ruta fuera del área soportada. Usa puntos dentro del GAM."
+          : "No se pudo generar el trazado: " + e.message
+      );
     } finally {
       setLoading(false);
     }
@@ -148,7 +182,7 @@ export default function useAdminRuta() {
     return Object.keys(errs).length === 0;
   }
 
-  function handleGuardar() {
+  async function handleGuardar() {
     if (!validateForm()) return;
     const origen  = puntos.find((p) => p.tipo === "origen");
     const destino = puntos.find((p) => p.tipo === "destino");
@@ -156,6 +190,11 @@ export default function useAdminRuta() {
       setError("Debes definir origen y destino en el mapa");
       return;
     }
+    if (trazado.length === 0) {
+      await generarTrazado();
+      return;
+    }
+    // Esto se debe guardar en el back cuando ya este listo
     console.log("Guardar ruta:", { form, puntos, trazado, distanciaKm, tiempoMin });
   }
 
