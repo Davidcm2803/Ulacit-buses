@@ -1,5 +1,5 @@
 import boto3, time
-from config import settings
+from app.config import settings
 
 logs = boto3.client('logs', region_name=settings.AWS_REGION)
 

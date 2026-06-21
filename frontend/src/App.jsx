@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Rutas from "./pages/BusRoutes";
+import History from "./pages/History";
 import DetalleRuta from "./pages/RouteDetails";
 import AdminLayout from "./pages/Admin/AdminLayout";
 import AdminCrearRuta from "./pages/Admin/AdminCrearRuta";

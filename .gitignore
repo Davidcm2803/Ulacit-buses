@@ -1,3 +1,4 @@
+
 # Frontend
 frontend/.env
 frontend/.env.local
@@ -5,3 +6,5 @@ frontend/.env.local
 # Backend
 backend/.env
 backend/.env.local
+
+backend/.env
