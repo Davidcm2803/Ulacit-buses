@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from app.Mongo.connection import db
 
 
-users_collection = db["users"]
+users_collection = db["usuarios"]
 
 
 def utc_now() -> datetime:
@@ -38,6 +38,7 @@ def synchronize_user(
     email = firebase_user.get("email")
     photo_url = firebase_user.get("picture")
     display_name = firebase_user.get("name")
+    provider = get_provider(firebase_user)
 
     resolved_username = (
         username
@@ -48,22 +49,30 @@ def synchronize_user(
 
     now = utc_now()
 
+    set_fields = {
+        "email": email,
+        "photo_url": photo_url,
+        "provider": provider,
+        "updated_at": now,
+    }
+
+    set_on_insert_fields = {
+        "firebase_uid": firebase_uid,
+        "role": "user",
+        "is_active": True,
+        "created_at": now,
+    }
+
+    if provider in ("google", "microsoft"):
+        set_fields["username"] = resolved_username
+    else:
+        set_on_insert_fields["username"] = resolved_username
+
     users_collection.update_one(
         {"firebase_uid": firebase_uid},
         {
-            "$set": {
-                "email": email,
-                "photo_url": photo_url,
-                "provider": get_provider(firebase_user),
-                "updated_at": now,
-            },
-            "$setOnInsert": {
-                "firebase_uid": firebase_uid,
-                "username": resolved_username,
-                "role": "user",
-                "is_active": True,
-                "created_at": now,
-            },
+            "$set": set_fields,
+            "$setOnInsert": set_on_insert_fields,
         },
         upsert=True,
     )

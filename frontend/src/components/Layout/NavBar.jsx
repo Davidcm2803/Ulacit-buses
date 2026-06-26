@@ -9,43 +9,61 @@ const LINKS = [{ label: "Rutas", href: "/rutas" }];
 export default function Navbar({ darkMode, toggleDarkMode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [profile, setProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [profile, setProfile] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("profile");
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const { pathname } = useLocation();
 
   const displayName = profile?.username || profile?.email || "Usuario";
   const initial = displayName.trim().charAt(0).toUpperCase();
 
+  const updateProfile = (p) => {
+    setProfile(p);
+    if (p) sessionStorage.setItem("profile", JSON.stringify(p));
+    else sessionStorage.removeItem("profile");
+  };
+
   useEffect(() => {
     const unsubscribe = observeAuthState(async (firebaseUser) => {
       try {
         if (!firebaseUser) {
-          setProfile(null);
+          updateProfile(null);
           return;
         }
 
         const currentProfile = await getCurrentProfile();
-        setProfile(currentProfile);
+        updateProfile(currentProfile);
       } catch (error) {
         console.error("Error restaurando la sesión:", error);
-        setProfile(null);
+        updateProfile(null);
       } finally {
         setAuthLoading(false);
       }
     });
 
-    return unsubscribe;
+    const timeout = setTimeout(() => setAuthLoading(false), 3000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleAuthSuccess = (userProfile) => {
-    setProfile(userProfile);
+    updateProfile(userProfile);
     setShowModal(false);
   };
 
   const handleLogout = async () => {
     try {
       await logout();
-      setProfile(null);
+      updateProfile(null);
       setMenuOpen(false);
     } catch (error) {
       console.error("Error cerrando sesión:", error);
@@ -78,7 +96,7 @@ export default function Navbar({ darkMode, toggleDarkMode }) {
         </div>
 
         <div className="flex items-center gap-2">
-          {authLoading ? (
+          {authLoading && !profile ? (
             <div className="hidden h-9 w-32 animate-pulse rounded-md bg-muted md:block" />
           ) : profile ? (
             <>
@@ -146,7 +164,7 @@ export default function Navbar({ darkMode, toggleDarkMode }) {
             </Link>
           ))}
 
-          {authLoading ? (
+          {authLoading && !profile ? (
             <div className="my-2 h-9 w-32 animate-pulse rounded-md bg-muted" />
           ) : profile ? (
             <>

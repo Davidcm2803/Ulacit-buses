@@ -67,7 +67,6 @@ export async function continueWithGoogle() {
         credential.user.displayName,
     );
 
-    console.log("Profile:", profile);
 
     return {
         user: credential.user,
@@ -80,7 +79,7 @@ export function observeAuthState(callback) {
     return onAuthStateChanged(auth, callback);
 }
 
-export async function getCurrentProfile() {
+export async function getCurrentProfile(retries = 3, delayMs = 400) {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
@@ -89,19 +88,25 @@ export async function getCurrentProfile() {
 
     const token = await currentUser.getIdToken();
 
-    const response = await fetch(`${API_URL}/auth/me`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    });
+    for (let attempt = 0; attempt < retries; attempt++) {
+        const response = await fetch(`${API_URL}/auth/me`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
 
-    const data = await response.json();
+        if (response.ok) {
+            return await response.json();
+        }
 
-    if (!response.ok) {
+        if (response.status === 404 && attempt < retries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            continue;
+        }
+
+        const data = await response.json();
         throw new Error(data?.detail ?? "No fue posible obtener el perfil");
     }
-
-    return data;
 }
 
 export async function logout() {

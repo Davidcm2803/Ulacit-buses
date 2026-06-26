@@ -80,10 +80,9 @@ export const AuthModal = ({ onClose, onSuccess }) => {
     setLoading("google");
 
     try {
-      const user = await continueWithGoogle();
+      const result = await continueWithGoogle();
 
-
-      onSuccess?.(user);
+      onSuccess?.(result.profile);
       onClose?.();
     } catch (error) {
       console.error("Error con Google:", error);
@@ -203,7 +202,6 @@ export const AuthModal = ({ onClose, onSuccess }) => {
             </p>
           </div>
 
-          {/* Providers firebase and microsoft */}
           <div className="flex flex-col gap-2">
             <ProviderBtn
               icon={<GoogleIcon />}

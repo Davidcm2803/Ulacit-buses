@@ -1,11 +1,8 @@
-from pathlib import Path
+import json
+import os
 
 import firebase_admin
 from firebase_admin import auth, credentials
-
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-SERVICE_ACCOUNT_PATH = BASE_DIR / "firebase-service-account.json"
 
 
 def initialize_firebase() -> None:
@@ -13,15 +10,21 @@ def initialize_firebase() -> None:
     if firebase_admin._apps:
         return
 
-    if not SERVICE_ACCOUNT_PATH.exists():
+    firebase_credentials_json = os.getenv("FIREBASE_CREDENTIALS")
+
+    if not firebase_credentials_json:
         raise RuntimeError(
-            "No se encontró firebase-service-account.json "
-            f"en {SERVICE_ACCOUNT_PATH}"
+            "No se encontró la variable de entorno FIREBASE_CREDENTIALS"
         )
 
-    firebase_credentials = credentials.Certificate(
-        str(SERVICE_ACCOUNT_PATH)
-    )
+    try:
+        credentials_dict = json.loads(firebase_credentials_json)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"FIREBASE_CREDENTIALS no es un JSON válido: {e}"
+        )
+
+    firebase_credentials = credentials.Certificate(credentials_dict)
 
     firebase_admin.initialize_app(firebase_credentials)
 
