@@ -30,7 +30,10 @@ def get_provider(firebase_user: dict) -> str:
     )
 
 
-async def synchronize_user(firebase_user: dict, username: str | None = None) -> dict:
+def synchronize_user(
+    firebase_user: dict,
+    username: str | None = None,
+) -> dict:
     firebase_uid = firebase_user["uid"]
     email = firebase_user.get("email")
     photo_url = firebase_user.get("picture")
@@ -45,10 +48,8 @@ async def synchronize_user(firebase_user: dict, username: str | None = None) -> 
 
     now = utc_now()
 
-    await users_collection.update_one(
-        {
-            "firebase_uid": firebase_uid,
-        },
+    users_collection.update_one(
+        {"firebase_uid": firebase_uid},
         {
             "$set": {
                 "email": email,
@@ -67,16 +68,14 @@ async def synchronize_user(firebase_user: dict, username: str | None = None) -> 
         upsert=True,
     )
 
-    user = await users_collection.find_one(
+    return users_collection.find_one(
         {"firebase_uid": firebase_uid},
         {"_id": 0},
     )
 
-    return user
 
-
-async def get_user_by_firebase_uid(firebase_uid: str) -> dict | None:
-    return await users_collection.find_one(
+def get_user_by_firebase_uid(firebase_uid: str) -> dict | None:
+    return users_collection.find_one(
         {"firebase_uid": firebase_uid},
         {"_id": 0},
     )

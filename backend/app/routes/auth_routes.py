@@ -24,7 +24,7 @@ router = APIRouter(
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
 )
-def sync_user(
+async def sync_user(
     data: UserSyncRequest,
     firebase_user: Annotated[
         dict,
@@ -50,7 +50,7 @@ def sync_user(
     "/me",
     response_model=UserResponse,
 )
-def get_my_profile(
+async def get_my_profile(
     current_user: Annotated[
         dict,
         Depends(get_current_app_user),
