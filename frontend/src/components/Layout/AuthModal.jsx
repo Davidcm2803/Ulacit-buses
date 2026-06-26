@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Bus, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { registerWithEmail, continueWithGoogle } from "../../services/authService";
+import { registerWithEmail, continueWithGoogle, loginWithEmail } from "../../services/authService";
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
@@ -118,16 +118,6 @@ export const AuthModal = ({ onClose, onSuccess }) => {
     const email = form.email.trim();
     const password = form.password;
 
-    if (mode === "login") {
-      setError("El inicio de sesión se conectará después.");
-      return;
-    }
-
-    if (!username) {
-      setError("Debe ingresar un nombre de usuario.");
-      return;
-    }
-
     if (!email) {
       setError("Debe ingresar un correo electrónico.");
       return;
@@ -138,7 +128,12 @@ export const AuthModal = ({ onClose, onSuccess }) => {
       return;
     }
 
-    if (password.length < 6) {
+    if (mode === "register" && !username) {
+      setError("Debe ingresar un nombre de usuario.");
+      return;
+    }
+
+    if (mode === "register" && password.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
@@ -146,37 +141,29 @@ export const AuthModal = ({ onClose, onSuccess }) => {
     setLoading("email");
 
     try {
-      const result = await registerWithEmail({
-        username,
-        email,
-        password,
-      });
-
-      console.log("Usuario creado:", result);
+      const result = mode === "login"
+        ? await loginWithEmail({ email, password })
+        : await registerWithEmail({ username, email, password });
 
       onSuccess?.(result.profile);
       onClose?.();
     } catch (error) {
-      console.error("Error registrando usuario:", error);
+      console.error("Error de autenticación:", error);
 
       const firebaseErrors = {
-        "auth/email-already-in-use":
-          "Este correo ya está registrado.",
-        "auth/invalid-email":
-          "El correo electrónico no es válido.",
-        "auth/weak-password":
-          "La contraseña es demasiado débil.",
-        "auth/operation-not-allowed":
-          "El registro con correo no está habilitado.",
-        "auth/network-request-failed":
-          "No fue posible conectar con Firebase.",
+        "auth/email-already-in-use": "Este correo ya está registrado.",
+        "auth/invalid-email": "El correo electrónico no es válido.",
+        "auth/weak-password": "La contraseña es demasiado débil.",
+        "auth/operation-not-allowed": "El acceso con correo no está habilitado.",
+        "auth/network-request-failed": "No fue posible conectar con Firebase.",
+        "auth/invalid-credential": "El correo o la contraseña son incorrectos.",
+        "auth/user-not-found": "No existe una cuenta con este correo.",
+        "auth/wrong-password": "La contraseña es incorrecta.",
+        "auth/user-disabled": "Esta cuenta está deshabilitada.",
+        "auth/too-many-requests": "Demasiados intentos. Inténtelo más tarde.",
       };
 
-      setError(
-        firebaseErrors[error.code] ??
-        error.message ??
-        "No fue posible crear la cuenta.",
-      );
+      setError(firebaseErrors[error.code] ?? error.message ?? "No fue posible iniciar sesión.");
     } finally {
       setLoading(null);
     }

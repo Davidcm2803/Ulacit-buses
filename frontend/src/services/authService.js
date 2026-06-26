@@ -1,4 +1,4 @@
-import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
 
 
@@ -47,6 +47,14 @@ export async function registerWithEmail({ username, email, password }) {
         token,
         profile,
     };
+}
+
+export async function loginWithEmail({ email, password }) {
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  const token = await credential.user.getIdToken();
+  const profile = await syncUser(token, credential.user.displayName);
+
+  return { user: credential.user, token, profile };
 }
 
 export async function continueWithGoogle() {
