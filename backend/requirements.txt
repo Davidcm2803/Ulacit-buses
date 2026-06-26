@@ -12,3 +12,5 @@ passlib[bcrypt]
 httpx
 pytest
 pytest-asyncio
+firebase-admin
+email-validator
