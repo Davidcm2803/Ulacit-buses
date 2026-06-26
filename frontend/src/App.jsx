@@ -8,6 +8,7 @@ import AdminCrearRuta from "./pages/Admin/AdminCrearRuta";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import AdminRutas from "./pages/Admin/AdminRutas";
 import AdminParadas from "./pages/Admin/AdminParadas";
+import ProtectedRoute from "./components/Layout/ProtectedRoute";
 
 function App() {
   return (
@@ -16,13 +17,17 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/rutas" element={<Rutas />} />
         <Route path="/rutas/:id" element={<DetalleRuta />} />
-        <Route path="/history" element={<History />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/history" element={<History />} />
+        </Route>
+
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="rutas" element={<AdminRutas />} />
           <Route path="rutas/nueva" element={<AdminCrearRuta />} />
           <Route path="paradas" element={<AdminParadas />} />
         </Route>
+
       </Routes>
     </BrowserRouter>
   );
