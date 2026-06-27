@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { apiGet } from "../lib/api";
+import { apiGet } from "../config/api";
 
 export function useHistory() {
   const [historial, setHistorial] = useState([]);
