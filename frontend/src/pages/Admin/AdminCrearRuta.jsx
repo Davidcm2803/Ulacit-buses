@@ -55,7 +55,7 @@ export default function AdminCrearRuta() {
           <button
             onClick={async () => {
               if (trazado.length === 0) await generarTrazado();
-              handleGuardar();
+              await handleGuardar();
             }}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
           >

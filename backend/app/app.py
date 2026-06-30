@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from mangum import Mangum
 
+from app.routes.routes import router as routes_router
+from app.routes.stops import router as stops_router
 from app.routes.history import router as history_router
 from app.Mongo.indexes import crear_indices
 from app.routes.auth_routes import router as auth_route
@@ -10,8 +12,15 @@ from app.services.firebase_service import initialize_firebase
 
 app = FastAPI(
     title="Ulacit Buses API",
-    version="1.0.0"
+    version="1.0.0",
+    redirect_slashes=False
 )
+
+@app.middleware("http")
+async def add_coop_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+    return response
 
 origins = [
     "http://localhost:5174",
@@ -29,12 +38,10 @@ app.add_middleware(
 
 app.include_router(history_router)
 app.include_router(auth_route)
+app.include_router(routes_router)
+app.include_router(stops_router)
 
-@app.middleware("http")
-async def add_coop_header(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-    return response
+
 
 @app.on_event("startup")
 def on_startup():
