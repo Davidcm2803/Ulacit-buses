@@ -12,64 +12,24 @@ const usuario = db.usuarios.insertOne({
     _id: ObjectId(),
     username: "Carlos",
     email: "carlos@email.com",
-    password: "hashed_password", // hay que hacer hash con bcrypt o jtk
-    role: "admin", // "admin"  "user"
+    password: "hashed_password", // hay que hacer hash con bcrypt o jwt
+    role: "admin", // "admin" | "user"
     createdAt: new Date()
 });
 
-// Paradas de ejemplo, usando Openrouteservice para longitud y latitud
-const paradaTerminalCentral = db.paradas.insertOne({
-    _id: ObjectId(),
-    nombre: "Terminal 7-10",
-    descripcion: "Terminal central de buses, San José",
-    coordenadas: {
-        lat: 9.9333,
-        lng: -84.0833
-    },
-    createdAt: new Date()
-});
-
-const paradaSabana = db.paradas.insertOne({
-    _id: ObjectId(),
-    nombre: "Parada La Sabana",
-    descripcion: "Frente al Estadio Nacional",
-    coordenadas: {
-        lat: 9.9381,
-        lng: -84.1057
-    },
-    createdAt: new Date()
-});
-
-const paradaEscazu = db.paradas.insertOne({
-    _id: ObjectId(),
-    nombre: "Terminal Escazú",
-    descripcion: "Terminal final de la ruta, Escazú centro",
-    coordenadas: {
-        lat: 9.9167,
-        lng: -84.1333
-    },
-    createdAt: new Date()
-});
-
-// Ruta de ejemplo, San José a Escazú, usando Openrouteservice para longitud y latitud
+// Ruta de ejemplo: San José -> Escazú
 const ruta = db.rutas.insertOne({
     _id: ObjectId(),
-    ruta_nombre: "San José - Escazú",
-    origen: "Terminal 7-10, San José",
-    destino: "Terminal Escazú",
+    nombre: "San José - Escazú",
+    codigo: "SJ-ES-01",
     descripcion: "Ruta directa de San José centro hacia Escazú",
-    horario: {
-        primer_bus: "05:00",        
-        ultimo_bus: "22:00",        
-        frecuencia_bus: 25        // en el front calculamos todas las salidas con esos 3 datos para montar un dropdown con todas las salidas de buses
-    },
+    primer_bus: "05:00",
+    ultimo_bus: "22:00",
+    frecuencia: 25,          // minutos, el front arma el dropdown de salidas con esto
     tarifa: 665,
-    paradas: [
-        paradaTerminalCentral.insertedId,
-        paradaSabana.insertedId,
-        paradaEscazu.insertedId
-    ],
-    coordenadas_recorrido: [
+    distancia_km: 8.4,
+    tiempo_min: 22,
+    trazado: [
         { lat: 9.9333, lng: -84.0833 },
         { lat: 9.9350, lng: -84.0900 },
         { lat: 9.9360, lng: -84.0970 },
@@ -78,11 +38,55 @@ const ruta = db.rutas.insertOne({
         { lat: 9.9200, lng: -84.1250 },
         { lat: 9.9167, lng: -84.1333 }
     ],
+    canton_origen: "San José",
+    provincia_origen: "San José",
+    canton_destino: "Escazú",
+    provincia_destino: "San José",
     activa: true,
     createdAt: new Date()
 });
 
-// Historial de rutas (OPCIONAAAL)
+// Paradas de la ruta (referencian route_id, como hace stopsService.create)
+const paradaOrigen = db.paradas.insertOne({
+    _id: ObjectId(),
+    nombre: "Terminal 7-10",
+    lat: 9.9333,
+    lng: -84.0833,
+    tipo: "origen",
+    orden: 0,
+    canton: "San José",
+    provincia: "San José",
+    route_id: ruta.insertedId.toString(),
+    createdAt: new Date()
+});
+
+const paradaIntermedia = db.paradas.insertOne({
+    _id: ObjectId(),
+    nombre: "Parada La Sabana",
+    lat: 9.9381,
+    lng: -84.1057,
+    tipo: "parada",
+    orden: 1,
+    canton: "San José",
+    provincia: "San José",
+    route_id: ruta.insertedId.toString(),
+    createdAt: new Date()
+});
+
+const paradaDestino = db.paradas.insertOne({
+    _id: ObjectId(),
+    nombre: "Terminal Escazú",
+    lat: 9.9167,
+    lng: -84.1333,
+    tipo: "destino",
+    orden: 2,
+    canton: "Escazú",
+    provincia: "San José",
+    route_id: ruta.insertedId.toString(),
+    createdAt: new Date()
+});
+
+// Historial de rutas (opcional)
 const historial = db.historial.insertOne({
     _id: ObjectId(),
     usuario: usuario.insertedId,
@@ -92,15 +96,15 @@ const historial = db.historial.insertOne({
     consultado_en: new Date()
 });
 
-// Ticket de compra que estan sujetos a la ruta y la hora ejemplo si pago bus de 3:00 solo sive para ese
+// Ticket de compra, sujeto a ruta + hora de salida específica
 const ticket = db.tickets.insertOne({
     _id: ObjectId(),
     usuario_id: usuario.insertedId,
     ruta_id: ruta.insertedId,
     stripe_payment_id: "pi_test_xxx",
     fecha_viaje: new Date("2025-06-01"),
-    hora_salida: "15:00",       // si intenta usarlo en otra salida se peta
-    estado: "activo",           // "activo o expirado" 
-    validado_en: null,          // se valida cuando el chofer escanea el QR
+    hora_salida: "15:00",       // solo sirve para esa salida
+    estado: "activo",           // "activo" | "expirado"
+    validado_en: null,          // se llena cuando el chofer escanea el QR
     createdAt: new Date()
 });

@@ -43,8 +43,31 @@ def _stop_out(doc: dict) -> dict:
 
 
 
-def get_all_routes(db: Database, skip: int = 0, limit: int = 100):
-    cursor = db.rutas.find({}).skip(skip).limit(limit)
+def get_all_routes(
+    db: Database,
+    skip: int = 0,
+    limit: int = 100,
+    origen: str | None = None,
+    destino: str | None = None,
+):
+    query = {}
+    if origen:
+        query["$or"] = query.get("$or", []) + [
+            {"canton_origen": origen},
+            {"provincia_origen": origen},
+        ]
+    if destino:
+        cond = [
+            {"canton_destino": destino},
+            {"provincia_destino": destino},
+        ]
+        if "$or" in query:
+            # ya hay condición de origen, combinar con $and
+            query = {"$and": [{"$or": query.pop("$or")}, {"$or": cond}]}
+        else:
+            query["$or"] = cond
+
+    cursor = db.rutas.find(query).skip(skip).limit(limit)
     return [_route_out(doc) for doc in cursor]
 
 
@@ -89,3 +112,4 @@ def delete_route(db: Database, route_id: str) -> bool:
 def get_stops_by_route(db: Database, route_id: str):
     cursor = db.paradas.find({"route_id": route_id}).sort("orden", 1)
     return [_stop_out(doc) for doc in cursor]
+

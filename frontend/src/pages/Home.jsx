@@ -9,18 +9,24 @@ import { routesService } from "../config/api";
 export default function Home() {
   const { darkMode, toggleDarkMode } = useDarkMode();
   const [rutaDestacada, setRutaDestacada] = useState(null);
+  const [paradaSeleccionada, setParadaSeleccionada] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  async function cargarRutaConParadas(ruta) {
+    try {
+      const paradas = await routesService.getStops(ruta.id);
+      setRutaDestacada({ ...ruta, paradas });
+      setParadaSeleccionada(null);
+    } catch (e) {
+      console.error("No se pudieron cargar las paradas:", e);
+    }
+  }
 
   useEffect(() => {
     routesService
-      .getAll() 
+      .getAll()
       .then(async (data) => {
-        if (data.length > 0) {
-          const paradas = await routesService.getStops(data[0].id);
-          console.log("ruta:", data[0]);
-          console.log("paradas:", paradas);
-          setRutaDestacada({ ...data[0], paradas });
-        }
+        if (data.length > 0) await cargarRutaConParadas(data[0]);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -38,7 +44,7 @@ export default function Home() {
               Encuentra tu ruta de bus
             </h1>
             <p className="text-muted-foreground">
-              Explora las rutas de transporte publico en Costa Rica
+              Explora las rutas de transporte público en Costa Rica
             </p>
           </div>
 
@@ -49,25 +55,30 @@ export default function Home() {
               </div>
             )}
             {!loading && rutaDestacada && (
-              <MapaRutas
-                coordenadasRecorrido={
-                  coordenadas.length
-                    ? coordenadas
-                    : (rutaDestacada.trazado ?? [])
-                }
-                paradas={rutaDestacada.paradas ?? []}
-              />
+              <>
+                <MapaRutas
+                  coordenadasRecorrido={
+                    coordenadas.length ? coordenadas : (rutaDestacada.trazado ?? [])
+                  }
+                  paradas={rutaDestacada.paradas ?? []}
+                  onSelectParada={setParadaSeleccionada}
+                />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Mostrando: <span className="font-medium text-foreground">{rutaDestacada.nombre}</span>
+                  {paradaSeleccionada && (
+                    <> · parada seleccionada: <span className="font-medium text-foreground">{paradaSeleccionada.nombre}</span></>
+                  )}
+                </p>
+              </>
             )}
             {!loading && !rutaDestacada && (
               <div className="flex h-[400px] items-center justify-center rounded-lg border border-border">
-                <p className="text-muted-foreground">
-                  No hay rutas disponibles aún.
-                </p>
+                <p className="text-muted-foreground">No hay rutas disponibles aún.</p>
               </div>
             )}
           </div>
 
-          <BuscadorRutas />
+          <BuscadorRutas onSelectRuta={cargarRutaConParadas} />
         </main>
       </div>
     </div>

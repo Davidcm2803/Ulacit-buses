@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { routesService, stopsService } from "../config/api";
+import { getCantonDeCoordenada } from "../lib/geoCR";
 
 const MAX_PARADAS = 10;
 const MIN_DISTANCIA = 100;
 const ORS_URL =
   "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
 const ORS_KEY = import.meta.env.VITE_ORS_API_KEY;
+
+const TIPO_LABEL = { origen: "Origen", parada: "Parada", destino: "Destino" };
 
 function distanciaMetros(a, b) {
   const R = 6371000;
@@ -76,15 +79,28 @@ export default function useAdminRuta() {
     ultimo_bus: "22:00",
     frecuencia: "25",
     tarifa: "",
+    canton_origen: "",
+    provincia_origen: "",
   });
   const [formErrors, setFormErrors] = useState({});
 
   function handleFormChange(key, value) {
+    if (key === "canton_origen" && value) {
+      const origen = puntos.find((p) => p.tipo === "origen");
+      if (origen && origen.canton && origen.canton !== value) {
+        alert(
+          `El cantón "${value}" no coincide con el punto de origen que ya pusiste en el mapa (está en ${origen.canton}, ${origen.provincia}). ` +
+            `Borra ese punto y vuelve a marcarlo, o elige "${origen.canton}" aquí.`,
+        );
+        return;
+      }
+    }
+
     setForm((f) => ({ ...f, [key]: value }));
     setFormErrors((e) => ({ ...e, [key]: null }));
   }
 
-  function handleMapClick(latlng) {
+  async function handleMapClick(latlng) {
     setError(null);
 
     for (const p of puntos) {
@@ -103,7 +119,33 @@ export default function useAdminRuta() {
     if (modo === "origen" && puntos.some((p) => p.tipo === "origen")) return;
     if (modo === "destino" && puntos.some((p) => p.tipo === "destino")) return;
 
-    const nuevoPunto = { ...latlng, tipo: modo };
+    if (modo === "origen" && !form.canton_origen) {
+      alert(
+        "Selecciona primero la provincia y el cantón de origen en el formulario de la izquierda.",
+      );
+      return;
+    }
+
+    let ubicacion = null;
+    try {
+      ubicacion = await getCantonDeCoordenada(latlng.lat, latlng.lng);
+    } catch {
+      setError("No se pudo verificar la ubicación. Intenta de nuevo.");
+      return;
+    }
+    if (!ubicacion) {
+      setError("Ese punto cae fuera del territorio de Costa Rica");
+      return;
+    }
+
+    if (modo === "origen" && ubicacion.canton !== form.canton_origen) {
+      setError(
+        `Estás fuera del cantón seleccionado (${form.canton_origen}). Verifica el punto en el mapa o cambia el cantón en el formulario de la izquierda.`,
+      );
+      return;
+    }
+
+    const nuevoPunto = { ...latlng, tipo: modo, nombre: "", ...ubicacion };
 
     setPuntos((prev) => {
       let next;
@@ -126,14 +168,49 @@ export default function useAdminRuta() {
     if (modo === "destino") setModo("parada");
   }
 
-  function movePoint(index, latlng) {
+  async function movePoint(index, latlng) {
+    const puntoActual = puntos[index];
+
+    let ubicacion = null;
+    try {
+      ubicacion = await getCantonDeCoordenada(latlng.lat, latlng.lng);
+    } catch {
+      ubicacion = null;
+    }
+
+    if (
+      puntoActual?.tipo === "origen" &&
+      form.canton_origen &&
+      ubicacion &&
+      ubicacion.canton !== form.canton_origen
+    ) {
+      setError(
+        `Estás fuera del cantón seleccionado (${form.canton_origen}). Verifica el punto en el mapa o cambia el cantón en el formulario de la izquierda.`,
+      );
+      return;
+    }
+
+    if (!ubicacion) {
+      setError("Ese punto cae fuera del territorio de Costa Rica");
+      return;
+    }
+
     setPuntos((prev) => {
-      const next = prev.map((p, i) => (i === index ? { ...p, ...latlng } : p));
+      const next = prev.map((p, i) =>
+        i === index ? { ...p, ...latlng, ...ubicacion } : p,
+      );
       return reordenarPorProximidad(next);
     });
+
     setTrazado([]);
     setDistanciaKm(null);
     setTiempoMin(null);
+  }
+
+  function renamePoint(index, nombre) {
+    setPuntos((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, nombre } : p)),
+    );
   }
 
   function removePoint(index) {
@@ -158,7 +235,7 @@ export default function useAdminRuta() {
     const destino = puntos.find((p) => p.tipo === "destino");
     if (!origen || !destino) {
       setError("Necesitas al menos origen y destino");
-      return;
+      return null;
     }
     setLoading(true);
     setError(null);
@@ -177,17 +254,31 @@ export default function useAdminRuta() {
       const geom = data?.features?.[0]?.geometry?.coordinates;
       const props = data?.features?.[0]?.properties?.summary;
       if (!geom) throw new Error("Sin geometría");
-      setTrazado(geom.map(([lng, lat]) => ({ lat, lng })));
+
+      const trazadoGenerado = geom.map(([lng, lat]) => ({ lat, lng }));
+      let distanciaGenerada = null;
+      let tiempoGenerado = null;
+
+      setTrazado(trazadoGenerado);
       if (props) {
-        setDistanciaKm((props.distance / 1000).toFixed(1));
-        setTiempoMin(Math.round(props.duration / 60));
+        distanciaGenerada = Number((props.distance / 1000).toFixed(1));
+        tiempoGenerado = Math.round(props.duration / 60);
+        setDistanciaKm(distanciaGenerada);
+        setTiempoMin(tiempoGenerado);
       }
+
+      return {
+        trazado: trazadoGenerado,
+        distanciaKm: distanciaGenerada,
+        tiempoMin: tiempoGenerado,
+      };
     } catch (e) {
       setError(
         e.message.includes("404") || e.message.includes("2009")
           ? "Ruta fuera del área soportada. Usa puntos dentro del GAM."
           : "No se pudo generar el trazado: " + e.message,
       );
+      return null;
     } finally {
       setLoading(false);
     }
@@ -203,10 +294,34 @@ export default function useAdminRuta() {
       return;
     }
 
+    if (!form.canton_origen) {
+      alert(
+        "Debes seleccionar la provincia y el cantón de origen antes de guardar.",
+      );
+      return;
+    }
+    if (origen.canton !== form.canton_origen) {
+      alert(
+        `El cantón elegido en el formulario (${form.canton_origen}) no coincide con el punto de origen en el mapa (${origen.canton}). Corrígelo antes de guardar.`,
+      );
+      return;
+    }
+
     let trazadoFinal = trazado;
+    let distanciaFinal = distanciaKm;
+    let tiempoFinal = tiempoMin;
+
     if (trazadoFinal.length === 0) {
-      await generarTrazado();
-      trazadoFinal = puntos.map((p) => ({ lat: p.lat, lng: p.lng }));
+      const resultado = await generarTrazado();
+      if (!resultado) {
+        setError(
+          "No se pudo generar el trazado del recorrido. Genera el trazado antes de guardar.",
+        );
+        return;
+      }
+      trazadoFinal = resultado.trazado;
+      distanciaFinal = resultado.distanciaKm;
+      tiempoFinal = resultado.tiempoMin;
     }
 
     setLoading(true);
@@ -220,19 +335,25 @@ export default function useAdminRuta() {
         ultimo_bus: form.ultimo_bus,
         frecuencia: Number(form.frecuencia),
         tarifa: Number(form.tarifa),
-        distancia_km: Number(distanciaKm),
-        tiempo_min: tiempoMin,
+        distancia_km: distanciaFinal,
+        tiempo_min: tiempoFinal,
         trazado: trazadoFinal,
+        canton_origen: origen.canton,
+        provincia_origen: origen.provincia,
+        canton_destino: destino.canton,
+        provincia_destino: destino.provincia,
       });
 
       await Promise.all(
         puntos.map((p, i) =>
           stopsService.create({
-            nombre: p.nombre ?? `Parada ${i + 1}`,
+            nombre: p.nombre?.trim() || `${TIPO_LABEL[p.tipo]} ${i + 1}`,
             lat: p.lat,
             lng: p.lng,
             tipo: p.tipo,
             orden: i,
+            canton: p.canton,
+            provincia: p.provincia,
             route_id: ruta.id,
           }),
         ),
@@ -268,6 +389,7 @@ export default function useAdminRuta() {
     handleFormChange,
     handleMapClick,
     movePoint,
+    renamePoint,
     removePoint,
     clearAll,
     generarTrazado,

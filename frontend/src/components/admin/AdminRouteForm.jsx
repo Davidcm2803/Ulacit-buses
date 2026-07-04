@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "../../lib/utils";
+import { getListaCantones } from "../../lib/geoCR";
 
 function Field({ label, children, error }) {
   return (
@@ -23,8 +25,54 @@ function Input({ className, ...props }) {
   );
 }
 
+function Select({ className, children, ...props }) {
+  return (
+    <select
+      className={cn(
+        "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground",
+        "focus:outline-none focus:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+}
+
 export default function AdminRouteForm({ form, onChange, errors }) {
+  const [cantones, setCantones] = useState([]);
   const set = (k) => (e) => onChange(k, e.target.value);
+
+  useEffect(() => {
+    getListaCantones().then(setCantones);
+  }, []);
+
+  const provincias = useMemo(() => {
+    const vistas = new Set();
+    return cantones
+      .map((c) => c.provincia)
+      .filter((p) => {
+        if (vistas.has(p)) return false;
+        vistas.add(p);
+        return true;
+      })
+      .sort();
+  }, [cantones]);
+
+  const cantonesDeProvincia = useMemo(
+    () => cantones.filter((c) => c.provincia === form.provincia_origen),
+    [cantones, form.provincia_origen],
+  );
+
+  function handleProvinciaChange(e) {
+    onChange("provincia_origen", e.target.value);
+    onChange("canton_origen", ""); 
+  }
+
+  function handleCantonChange(e) {
+    onChange("canton_origen", e.target.value);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -55,6 +103,38 @@ export default function AdminRouteForm({ form, onChange, errors }) {
           value={form.descripcion}
           onChange={set("descripcion")}
         />
+      </Field>
+
+      <Field label="Provincia de origen" error={errors?.provincia_origen}>
+        <Select value={form.provincia_origen ?? ""} onChange={handleProvinciaChange}>
+          <option value="">Selecciona una provincia</option>
+          {provincias.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Cantón de origen" error={errors?.canton_origen}>
+        <Select
+          value={form.canton_origen ?? ""}
+          onChange={handleCantonChange}
+          disabled={!form.provincia_origen}
+        >
+          <option value="">
+            {form.provincia_origen ? "Selecciona un cantón" : "Primero elige una provincia"}
+          </option>
+          {cantonesDeProvincia.map((c) => (
+            <option key={c.canton} value={c.canton}>
+              {c.canton}
+            </option>
+          ))}
+        </Select>
+        <p className="text-[11px] text-muted-foreground">
+          El punto de origen deberá caer dentro de este cantón. El destino y las
+          paradas pueden estar en cualquier otro cantón.
+        </p>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">

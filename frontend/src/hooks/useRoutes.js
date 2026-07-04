@@ -1,30 +1,29 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { routesService } from "../config/api";
 
-export default function useRutas() {
+export default function useRoutes() {
   const [resultados, setResultados] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [buscado, setBuscado] = useState(false);
 
-  async function buscar({ origen, destino }) {
+  const buscar = useCallback(async ({ origen, destino } = {}) => {
     setLoading(true);
+    setError(null);
+    setBuscado(true);
     try {
-      const todas = await routesService.getAll();
-      const filtradas = todas.filter((ruta) => {
-        const coincideOrigen = origen
-          ? ruta.nombre.toLowerCase().includes(origen.toLowerCase())
-          : true;
-        const coincideDestino = destino
-          ? ruta.nombre.toLowerCase().includes(destino.toLowerCase())
-          : true;
-        return coincideOrigen && coincideDestino;
-      });
-      setResultados(filtradas);
+      const params = {};
+      if (origen) params.origen = origen;
+      if (destino) params.destino = destino;
+      const data = await routesService.getAll(params);
+      setResultados(data);
     } catch (e) {
-      console.error("Error buscando rutas:", e);
+      setError(e.message);
+      setResultados([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  return { resultados, loading, buscar };
+  return { resultados, buscar, loading, error, buscado };
 }

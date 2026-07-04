@@ -7,9 +7,14 @@ router = APIRouter(prefix="/routes", tags=["routes"])
 
 
 @router.get("", response_model=list[RouteOut])
-def list_routes(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
+def list_routes(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    origen: str | None = Query(None),
+    destino: str | None = Query(None),
+):
     from app.Mongo.connection import db
-    return route_service.get_all_routes(db, skip, limit)
+    return route_service.get_all_routes(db, skip, limit, origen, destino)
 
 
 @router.get("/{route_id}", response_model=RouteOut)

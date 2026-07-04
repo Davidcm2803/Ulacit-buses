@@ -5,20 +5,31 @@ import {
   Polyline,
   Marker,
   Tooltip,
+  Popup,
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-});
+const SHADOW_URL =
+  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png";
+
+function crearIcono(color) {
+  return new L.Icon({
+    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+    shadowUrl: SHADOW_URL,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+}
+
+const ICONOS = {
+  origen: crearIcono("green"),
+  destino: crearIcono("red"),
+  parada: crearIcono("blue"),
+};
 
 const CR_CENTER = [9.9333, -84.0833];
 const CR_ZOOM = 12;
@@ -32,18 +43,16 @@ function MapInvalidator() {
   return null;
 }
 
-export default function MapaRutas({ coordenadasRecorrido = [], paradas = [] }) {
+export default function MapaRutas({
+  coordenadasRecorrido = [],
+  paradas = [],
+  onSelectParada,
+}) {
   const polylinePositions = coordenadasRecorrido.map((c) => [c.lat, c.lng]);
 
   return (
     <div className="relative h-[400px] w-full overflow-hidden rounded-lg border border-border shadow-sm sm:h-[500px] [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full [&_.leaflet-container]:z-0">
-      <MapContainer
-        center={CR_CENTER}
-        zoom={CR_ZOOM}
-        scrollWheelZoom={true}
-        zoomSnap={0.3}
-        zoomDelta={0.3}
-      >
+      <MapContainer center={CR_CENTER} zoom={CR_ZOOM} scrollWheelZoom zoomSnap={0.3} zoomDelta={0.3}>
         <MapInvalidator />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -58,10 +67,26 @@ export default function MapaRutas({ coordenadasRecorrido = [], paradas = [] }) {
         )}
 
         {paradas.map((parada, index) => (
-          <Marker key={index} position={[parada.lat, parada.lng]}>
+          <Marker
+            key={parada.id ?? index}
+            position={[parada.lat, parada.lng]}
+            icon={ICONOS[parada.tipo] ?? ICONOS.parada}
+            eventHandlers={{
+              click: () => onSelectParada?.(parada),
+            }}
+          >
             <Tooltip>
               <span className="text-xs font-semibold">{parada.nombre}</span>
             </Tooltip>
+            <Popup>
+              <div className="text-sm">
+                <p className="font-semibold">{parada.nombre}</p>
+                <p className="text-xs capitalize text-muted-foreground">{parada.tipo}</p>
+                <p className="text-xs text-muted-foreground">
+                  {parada.canton}, {parada.provincia}
+                </p>
+              </div>
+            </Popup>
           </Marker>
         ))}
       </MapContainer>
