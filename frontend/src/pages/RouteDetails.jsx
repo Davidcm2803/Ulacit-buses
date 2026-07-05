@@ -59,7 +59,10 @@ export default function DetalleRuta() {
   const { coordenadas } = useTrazadoRuta(paradas);
 
   const horarios = useMemo(
-    () => (ruta ? generarHorarios(ruta.primer_bus, ruta.ultimo_bus, ruta.frecuencia) : []),
+    () =>
+      ruta
+        ? generarHorarios(ruta.primer_bus, ruta.ultimo_bus, ruta.frecuencia)
+        : [],
     [ruta],
   );
 
@@ -133,7 +136,9 @@ export default function DetalleRuta() {
 
           <div className="mb-6">
             <MapaRutas
-              coordenadasRecorrido={coordenadas.length ? coordenadas : ruta.trazado}
+              coordenadasRecorrido={
+                coordenadas.length ? coordenadas : ruta.trazado
+              }
               paradas={paradas}
               onSelectParada={(p) => p.tipo !== "destino" && setParadaId(p.id)}
             />
@@ -146,13 +151,20 @@ export default function DetalleRuta() {
             </Card>
 
             <Card>
-              <h2 className="mb-6 text-lg font-semibold text-foreground">Comprar boleto</h2>
+              <h2 className="mb-6 text-lg font-semibold text-foreground">
+                Comprar boleto
+              </h2>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <SelectField
                   label="Tu parada (o haz click en el mapa)"
-                  value={paradaId}
-                  onChange={setParadaId}
+                  value={paradas.find((p) => p.id === paradaId)?.nombre ?? ""}
+                  onChange={(nombreSeleccionado) => {
+                    const p = abordables.find(
+                      (p) => p.nombre === nombreSeleccionado,
+                    );
+                    if (p) setParadaId(p.id);
+                  }}
                   options={abordables.map((p) => p.nombre)}
                 />
                 <SelectField
@@ -175,7 +187,9 @@ export default function DetalleRuta() {
                   >
                     −
                   </button>
-                  <span className="w-8 text-center font-medium text-foreground">{cantidad}</span>
+                  <span className="w-8 text-center font-medium text-foreground">
+                    {cantidad}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setCantidad((c) => Math.min(10, c + 1))}
@@ -194,7 +208,10 @@ export default function DetalleRuta() {
                     ₡{total.toLocaleString()}
                   </p>
                 </div>
-                <Button onClick={handleAgregar} disabled={!paradaId || !horario}>
+                <Button
+                  onClick={handleAgregar}
+                  disabled={!paradaId || !horario}
+                >
                   <ShoppingCart size={16} />
                   Agregar al carrito
                 </Button>
@@ -202,7 +219,8 @@ export default function DetalleRuta() {
 
               {carritoActual && carritoActual.rutaId !== ruta.id && (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Ya tienes un boleto de "{carritoActual.rutaNombre}" en el carrito. Agregar este lo reemplazará.
+                  Ya tienes un boleto de "{carritoActual.rutaNombre}" en el
+                  carrito. Agregar este lo reemplazará.
                 </p>
               )}
             </Card>

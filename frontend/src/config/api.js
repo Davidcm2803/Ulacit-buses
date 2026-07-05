@@ -1,7 +1,11 @@
+import { auth } from '../lib/firebase'
+
 const BASE = import.meta.env.VITE_API_URL
 
 async function apiRequest(path, opts = {}) {
-  const token = localStorage.getItem('token')
+  const currentUser = auth.currentUser
+  const token = currentUser ? await currentUser.getIdToken() : null
+
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -41,6 +45,12 @@ export const routesService = {
 
 export const stopsService = createService('stops')
 export const authService  = createService('auth')
+
+export const paymentsService = {
+  createIntent: (data) => http.post(`${BASE}/payments/create-intent`, data),
+  confirm:      (data) => http.post(`${BASE}/payments/confirm`, data),
+}
+
 export const apiGet  = (path)        => http.get(`${BASE}${path}`)
 export const apiPost = (path, body)  => http.post(`${BASE}${path}`, body)
 export const apiPut  = (path, body)  => http.put(`${BASE}${path}`, body)

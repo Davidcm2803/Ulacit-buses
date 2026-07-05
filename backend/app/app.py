@@ -9,6 +9,7 @@ from app.routes.history import router as history_router
 from app.Mongo.indexes import crear_indices
 from app.routes.auth_routes import router as auth_route
 from app.services.firebase_service import initialize_firebase
+from app.routes.payments import router as payments_router
 
 app = FastAPI(
     title="Ulacit Buses API",
@@ -40,6 +41,7 @@ app.include_router(history_router)
 app.include_router(auth_route)
 app.include_router(routes_router)
 app.include_router(stops_router)
+app.include_router(payments_router)
 
 
 
