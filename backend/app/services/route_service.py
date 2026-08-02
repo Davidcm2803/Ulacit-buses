@@ -113,3 +113,14 @@ def get_stops_by_route(db: Database, route_id: str):
     cursor = db.paradas.find({"route_id": route_id}).sort("orden", 1)
     return [_stop_out(doc) for doc in cursor]
 
+def replace_stops_for_route(db: Database, route_id: str, stops: list):
+    """Reemplazo completo: borra las paradas actuales de la ruta y crea las nuevas."""
+    db.paradas.delete_many({"route_id": route_id})
+
+    if not stops:
+        return []
+
+    payload = [{**s.model_dump(), "route_id": route_id} for s in stops]
+    result = db.paradas.insert_many(payload)
+    docs = db.paradas.find({"_id": {"$in": result.inserted_ids}}).sort("orden", 1)
+    return [_stop_out(doc) for doc in docs]

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Trash2, Route } from "lucide-react";
 import { cn } from "../../lib/utils";
 import AdminMapPicker from "../../components/admin/AdminMapPicker";
@@ -16,6 +16,9 @@ const TABS_MOBILE = [
 ];
 
 export default function AdminCrearRuta() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
   const {
     puntos,
     modo,
@@ -25,6 +28,8 @@ export default function AdminCrearRuta() {
     tiempoMin,
     error,
     loading,
+    initialLoading,
+    isEdicion,
     form,
     formErrors,
     handleFormChange,
@@ -35,13 +40,25 @@ export default function AdminCrearRuta() {
     clearAll,
     generarTrazado,
     handleGuardar,
-  } = useAdminRuta();
+  } = useAdminRuta(id);
 
   const [tabMobile, setTabMobile] = useState("form");
 
   async function onGuardar() {
     if (trazado.length === 0) await generarTrazado();
-    await handleGuardar();
+    const ok = await handleGuardar();
+    if (ok && isEdicion) {
+      alert(`Ruta "${form.nombre}" actualizada correctamente`);
+      navigate("/admin/rutas");
+    }
+  }
+
+  if (initialLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-muted-foreground">Cargando ruta...</p>
+      </div>
+    );
   }
 
   return (
@@ -57,7 +74,7 @@ export default function AdminCrearRuta() {
           </Link>
           <span className="hidden text-muted-foreground/40 sm:inline">/</span>
           <span className="truncate text-sm font-medium text-foreground">
-            Crear nueva ruta
+            {isEdicion ? `Editar ruta${form.nombre ? `: ${form.nombre}` : ""}` : "Crear nueva ruta"}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -70,10 +87,13 @@ export default function AdminCrearRuta() {
           </button>
           <button
             onClick={onGuardar}
-            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity sm:px-4"
+            disabled={loading}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 sm:px-4"
           >
             <Save size={14} />
-            <span className="hidden sm:inline">Guardar ruta</span>
+            <span className="hidden sm:inline">
+              {loading ? "Guardando..." : isEdicion ? "Guardar cambios" : "Guardar ruta"}
+            </span>
           </button>
         </div>
       </div>

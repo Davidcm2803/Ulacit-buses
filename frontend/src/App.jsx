@@ -26,11 +26,14 @@ function App() {
             <Route path="/history" element={<History />} />
           </Route>
 
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="rutas" element={<AdminRutas />} />
-            <Route path="rutas/nueva" element={<AdminCrearRuta />} />
-            <Route path="paradas" element={<AdminParadas />} />
+          <Route element={<ProtectedRoute requireAdmin />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="rutas" element={<AdminRutas />} />
+              <Route path="rutas/nueva" element={<AdminCrearRuta />} />
+              <Route path="rutas/:id/editar" element={<AdminCrearRuta />} />
+              <Route path="paradas" element={<AdminParadas />} />
+            </Route>
           </Route>
         </Routes>
       </CartProvider>

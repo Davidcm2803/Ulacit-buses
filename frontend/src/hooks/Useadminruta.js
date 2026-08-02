@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { routesService, stopsService } from "../config/api";
 import { getCantonDeCoordenada } from "../lib/geoCR";
 
@@ -62,7 +62,9 @@ function validateForm(form, setFormErrors) {
   return Object.keys(errs).length === 0;
 }
 
-export default function useAdminRuta() {
+export default function useAdminRuta(routeId) {
+  const isEdicion = Boolean(routeId);
+
   const [puntos, setPuntos] = useState([]);
   const [modo, setModo] = useState("origen");
   const [trazado, setTrazado] = useState([]);
@@ -70,6 +72,7 @@ export default function useAdminRuta() {
   const [tiempoMin, setTiempoMin] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEdicion);
   const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({
     nombre: "",
@@ -83,6 +86,57 @@ export default function useAdminRuta() {
     provincia_origen: "",
   });
   const [formErrors, setFormErrors] = useState({});
+
+  // Carga la ruta existente cuando estamos en modo edición
+  useEffect(() => {
+    if (!routeId) return;
+
+    async function cargarRuta() {
+      setInitialLoading(true);
+      setError(null);
+      try {
+        const [ruta, paradas] = await Promise.all([
+          routesService.getById(routeId),
+          routesService.getStops(routeId),
+        ]);
+
+        setForm({
+          nombre: ruta.nombre,
+          codigo: ruta.codigo,
+          descripcion: ruta.descripcion ?? "",
+          primer_bus: ruta.primer_bus,
+          ultimo_bus: ruta.ultimo_bus,
+          frecuencia: String(ruta.frecuencia),
+          tarifa: String(ruta.tarifa),
+          canton_origen: ruta.canton_origen,
+          provincia_origen: ruta.provincia_origen,
+        });
+
+        const puntosOrdenados = paradas
+          .slice()
+          .sort((a, b) => a.orden - b.orden)
+          .map((p) => ({
+            lat: p.lat,
+            lng: p.lng,
+            tipo: p.tipo,
+            nombre: p.nombre,
+            canton: p.canton,
+            provincia: p.provincia,
+          }));
+
+        setPuntos(puntosOrdenados);
+        setTrazado(ruta.trazado ?? []);
+        setDistanciaKm(ruta.distancia_km ?? null);
+        setTiempoMin(ruta.tiempo_min ?? null);
+      } catch (e) {
+        setError("No se pudo cargar la ruta: " + e.message);
+      } finally {
+        setInitialLoading(false);
+      }
+    }
+
+    cargarRuta();
+  }, [routeId]);
 
   function handleFormChange(key, value) {
     if (key === "canton_origen" && value) {
@@ -285,26 +339,26 @@ export default function useAdminRuta() {
   }
 
   async function handleGuardar() {
-    if (!validateForm(form, setFormErrors)) return;
+    if (!validateForm(form, setFormErrors)) return false;
 
     const origen = puntos.find((p) => p.tipo === "origen");
     const destino = puntos.find((p) => p.tipo === "destino");
     if (!origen || !destino) {
       setError("Debes definir origen y destino en el mapa");
-      return;
+      return false;
     }
 
     if (!form.canton_origen) {
       alert(
         "Debes seleccionar la provincia y el cantón de origen antes de guardar.",
       );
-      return;
+      return false;
     }
     if (origen.canton !== form.canton_origen) {
       alert(
         `El cantón elegido en el formulario (${form.canton_origen}) no coincide con el punto de origen en el mapa (${origen.canton}). Corrígelo antes de guardar.`,
       );
-      return;
+      return false;
     }
 
     let trazadoFinal = trazado;
@@ -317,7 +371,7 @@ export default function useAdminRuta() {
         setError(
           "No se pudo generar el trazado del recorrido. Genera el trazado antes de guardar.",
         );
-        return;
+        return false;
       }
       trazadoFinal = resultado.trazado;
       distanciaFinal = resultado.distanciaKm;
@@ -327,7 +381,7 @@ export default function useAdminRuta() {
     setLoading(true);
     setError(null);
     try {
-      const ruta = await routesService.create({
+      const payloadRuta = {
         nombre: form.nombre,
         codigo: form.codigo,
         descripcion: form.descripcion,
@@ -342,33 +396,46 @@ export default function useAdminRuta() {
         provincia_origen: origen.provincia,
         canton_destino: destino.canton,
         provincia_destino: destino.provincia,
-      });
+      };
 
-      await Promise.all(
-        puntos.map((p, i) =>
-          stopsService.create({
-            nombre: p.nombre?.trim() || `${TIPO_LABEL[p.tipo]} ${i + 1}`,
-            lat: p.lat,
-            lng: p.lng,
-            tipo: p.tipo,
-            orden: i,
-            canton: p.canton,
-            provincia: p.provincia,
-            route_id: ruta.id,
-          }),
-        ),
-      );
+      const paradasPayload = puntos.map((p, i) => ({
+        nombre: p.nombre?.trim() || `${TIPO_LABEL[p.tipo]} ${i + 1}`,
+        lat: p.lat,
+        lng: p.lng,
+        tipo: p.tipo,
+        orden: i,
+        canton: p.canton,
+        provincia: p.provincia,
+      }));
 
-      const nombre = form.nombre;
-      const codigo = form.codigo;
+      if (isEdicion) {
+        await routesService.update(routeId, payloadRuta);
+        await routesService.syncStops(routeId, paradasPayload);
+      } else {
+        const ruta = await routesService.create(payloadRuta);
+        await Promise.all(
+          paradasPayload.map((p) =>
+            stopsService.create({ ...p, route_id: ruta.id }),
+          ),
+        );
+      }
+
       setSuccess(true);
-      clearAll();
-      setTimeout(
-        () => alert(`Ruta "${nombre}" (${codigo}) guardada correctamente`),
-        100,
-      );
+
+      if (!isEdicion) {
+        const nombre = form.nombre;
+        const codigo = form.codigo;
+        clearAll();
+        setTimeout(
+          () => alert(`Ruta "${nombre}" (${codigo}) guardada correctamente`),
+          100,
+        );
+      }
+
+      return true;
     } catch (e) {
       setError("Error al guardar: " + e.message);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -383,7 +450,9 @@ export default function useAdminRuta() {
     tiempoMin,
     error,
     loading,
+    initialLoading,
     success,
+    isEdicion,
     form,
     formErrors,
     handleFormChange,

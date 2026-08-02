@@ -1,22 +1,11 @@
-import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { observeAuthState } from "../../services/authService";
+import { useAuth } from "../../context/AuthContext";
 
-export default function ProtectedRoute() {
-  const [firebaseUser, setFirebaseUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+export default function ProtectedRoute({ requireAdmin = false }) {
+  const { firebaseUser, isAdmin, loading } = useAuth();
   const location = useLocation();
 
-  useEffect(() => {
-    const unsubscribe = observeAuthState((user) => {
-      setFirebaseUser(user);
-      setAuthLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  if (authLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
@@ -26,6 +15,10 @@ export default function ProtectedRoute() {
 
   if (!firebaseUser) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

@@ -41,6 +41,7 @@ const createService = (resource) => ({
 export const routesService = {
   ...createService('routes'),
   getStops: (id) => http.get(`${BASE}/routes/${id}/stops`),
+  syncStops: (id, paradas) => http.put(`${BASE}/routes/${id}/stops`, paradas),
 }
 
 export const stopsService = createService('stops')

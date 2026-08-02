@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.models.route import RouteCreate, RouteUpdate, RouteOut, StopOut
+from app.middlewares.auth_middleware import require_admin
+from app.models.route import RouteCreate, RouteUpdate, RouteOut, StopOut, StopSync
 from app.services import route_service, stop_service
 
 router = APIRouter(prefix="/routes", tags=["routes"])
@@ -27,13 +28,20 @@ def get_route(route_id: str):
 
 
 @router.post("", response_model=RouteOut, status_code=201)
-def create_route(body: RouteCreate):
+def create_route(
+    body: RouteCreate,
+    _admin: dict = Depends(require_admin),
+):
     from app.Mongo.connection import db
     return route_service.create_route(db, body)
 
 
 @router.put("/{route_id}", response_model=RouteOut)
-def update_route(route_id: str, body: RouteUpdate):
+def update_route(
+    route_id: str,
+    body: RouteUpdate,
+    _admin: dict = Depends(require_admin),
+):
     from app.Mongo.connection import db
     route = route_service.update_route(db, route_id, body)
     if not route:
@@ -42,7 +50,10 @@ def update_route(route_id: str, body: RouteUpdate):
 
 
 @router.delete("/{route_id}", status_code=204)
-def delete_route(route_id: str):
+def delete_route(
+    route_id: str,
+    _admin: dict = Depends(require_admin),
+):
     from app.Mongo.connection import db
     stop_service.delete_stops_by_route(db, route_id)
     if not route_service.delete_route(db, route_id):
@@ -55,3 +66,16 @@ def get_route_stops(route_id: str):
     if not route_service.get_route_by_id(db, route_id):
         raise HTTPException(404, "Ruta no encontrada")
     return route_service.get_stops_by_route(db, route_id)
+
+
+@router.put("/{route_id}/stops", response_model=list[StopOut])
+def sync_route_stops(
+    route_id: str,
+    body: list[StopSync],
+    _admin: dict = Depends(require_admin),
+):
+    """Reemplaza TODAS las paradas de la ruta por la lista enviada (usado al editar)."""
+    from app.Mongo.connection import db
+    if not route_service.get_route_by_id(db, route_id):
+        raise HTTPException(404, "Ruta no encontrada")
+    return route_service.replace_stops_for_route(db, route_id, body)
