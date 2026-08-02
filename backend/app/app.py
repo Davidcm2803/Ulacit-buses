@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, APIRouter
 from fastapi.responses import Response
+from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
 from app.routes.routes import router as routes_router
@@ -22,6 +23,14 @@ async def add_coop_header(request: Request, call_next):
     response = await call_next(request)
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
     return response
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://d1ybo6ldrc0wgn.cloudfront.net"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 api_router = APIRouter(prefix="/api")
 
