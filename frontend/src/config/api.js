@@ -40,7 +40,7 @@ const createService = (resource) => ({
 
 export const routesService = {
   ...createService('routes'),
-  getStops: (id) => http.get(`${BASE}/routes/${id}/stops`),
+  getStops:  (id)         => http.get(`${BASE}/routes/${id}/stops`),
   syncStops: (id, paradas) => http.put(`${BASE}/routes/${id}/stops`, paradas),
 }
 
@@ -50,6 +50,11 @@ export const authService  = createService('auth')
 export const paymentsService = {
   createIntent: (data) => http.post(`${BASE}/payments/create-intent`, data),
   confirm:      (data) => http.post(`${BASE}/payments/confirm`, data),
+}
+
+export const ticketsService = {
+  getMine:  ()   => http.get(`${BASE}/tickets/me`),
+  getById:  (id) => http.get(`${BASE}/tickets/${id}`),
 }
 
 export const apiGet  = (path)        => http.get(`${BASE}${path}`)

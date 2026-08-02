@@ -17,6 +17,7 @@ const TABS_MOBILE = [
 
 export default function AdminCrearRuta() {
   const { id } = useParams();
+  console.log("DEBUG id:", id, "| pathname:", window.location.pathname);
   const navigate = useNavigate();
 
   const {
@@ -47,8 +48,12 @@ export default function AdminCrearRuta() {
   async function onGuardar() {
     if (trazado.length === 0) await generarTrazado();
     const ok = await handleGuardar();
-    if (ok && isEdicion) {
-      alert(`Ruta "${form.nombre}" actualizada correctamente`);
+    if (ok) {
+      alert(
+        isEdicion
+          ? `Ruta "${form.nombre}" actualizada correctamente`
+          : `Ruta "${form.nombre}" creada correctamente`,
+      );
       navigate("/admin/rutas");
     }
   }

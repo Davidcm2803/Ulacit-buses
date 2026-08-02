@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Navbar from "../components/layout/Navbar";
+import Navbar from "../components/layout/NavBar";
 import MapaRutas from "../components/routes/RouteMap";
 import BuscadorRutas from "../components/routes/RouteSearch";
 import { useDarkMode } from "../hooks/useDarkMode";

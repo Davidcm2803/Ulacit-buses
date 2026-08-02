@@ -31,6 +31,14 @@ const ICONOS = {
   parada: crearIcono("blue"),
 };
 
+const BUS_ICON = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f68c.png",
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+  popupAnchor: [0, -16],
+});
+
 const CR_CENTER = [9.9333, -84.0833];
 const CR_ZOOM = 12;
 
@@ -47,6 +55,7 @@ export default function MapaRutas({
   coordenadasRecorrido = [],
   paradas = [],
   onSelectParada,
+  busPosicion = null,
 }) {
   const polylinePositions = coordenadasRecorrido.map((c) => [c.lat, c.lng]);
 
@@ -89,6 +98,18 @@ export default function MapaRutas({
             </Popup>
           </Marker>
         ))}
+
+        {busPosicion && (
+          <Marker
+            position={[busPosicion.lat, busPosicion.lng]}
+            icon={BUS_ICON}
+            zIndexOffset={1000}
+          >
+            <Tooltip direction="top" offset={[0, -10]} permanent={false}>
+              <span className="text-xs font-semibold">Tu bus</span>
+            </Tooltip>
+          </Marker>
+        )}
       </MapContainer>
     </div>
   );

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.middlewares.auth_middleware import require_admin
 from app.models.route import StopCreate, StopUpdate, StopOut
 from app.services import stop_service
 
@@ -22,13 +23,20 @@ def get_stop(stop_id: str):
 
 
 @router.post("", response_model=StopOut, status_code=201)
-def create_stop(body: StopCreate):
+def create_stop(
+    body: StopCreate,
+    _admin: dict = Depends(require_admin),
+):
     from app.Mongo.connection import db
     return stop_service.create_stop(db, body)
 
 
 @router.put("/{stop_id}", response_model=StopOut)
-def update_stop(stop_id: str, body: StopUpdate):
+def update_stop(
+    stop_id: str,
+    body: StopUpdate,
+    _admin: dict = Depends(require_admin),
+):
     from app.Mongo.connection import db
     stop = stop_service.update_stop(db, stop_id, body)
     if not stop:
@@ -37,7 +45,10 @@ def update_stop(stop_id: str, body: StopUpdate):
 
 
 @router.delete("/{stop_id}", status_code=204)
-def delete_stop(stop_id: str):
+def delete_stop(
+    stop_id: str,
+    _admin: dict = Depends(require_admin),
+):
     from app.Mongo.connection import db
     if not stop_service.delete_stop(db, stop_id):
         raise HTTPException(404, "Parada no encontrada")

@@ -74,7 +74,6 @@ def sync_route_stops(
     body: list[StopSync],
     _admin: dict = Depends(require_admin),
 ):
-    """Reemplaza TODAS las paradas de la ruta por la lista enviada (usado al editar)."""
     from app.Mongo.connection import db
     if not route_service.get_route_by_id(db, route_id):
         raise HTTPException(404, "Ruta no encontrada")

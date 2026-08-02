@@ -1,9 +1,5 @@
 import * as turf from "@turf/turf";
 
-// El archivo pesa 146KB. Lo cargamos como fetch (no como import estático)
-// para que NO infle el bundle de JS — se descarga una sola vez y queda
-// en caché del navegador como cualquier asset estático.
-// Debe vivir en: /public/data/cantones-cr.json
 const GEOJSON_URL = "/data/cantones-cr.json";
 
 let featuresPromise = null;
@@ -46,6 +42,20 @@ export async function getListaCantones() {
       return true;
     })
     .sort((a, b) => a.canton.localeCompare(b.canton));
+}
+
+/** Lista de provincias unicas para usar en <select>. */
+export async function getListaProvincias() {
+  const features = await loadFeatures();
+  const vistas = new Set();
+  return features
+    .map((f) => f.properties.provincia)
+    .filter((p) => {
+      if (vistas.has(p)) return false;
+      vistas.add(p);
+      return true;
+    })
+    .sort((a, b) => a.localeCompare(b));
 }
 
 /** Devuelve el Feature (con geometría) de un canton, para dibujarlo en el mapa. */

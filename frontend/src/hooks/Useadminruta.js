@@ -4,6 +4,7 @@ import { getCantonDeCoordenada } from "../lib/geoCR";
 
 const MAX_PARADAS = 10;
 const MIN_DISTANCIA = 100;
+const TARIFA_MINIMA = 100;
 const ORS_URL =
   "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
 const ORS_KEY = import.meta.env.VITE_ORS_API_KEY;
@@ -56,6 +57,8 @@ function validateForm(form, setFormErrors) {
   if (!form.nombre) errs.nombre = "Requerido";
   if (!form.codigo) errs.codigo = "Requerido";
   if (!form.tarifa) errs.tarifa = "Requerido";
+  else if (Number(form.tarifa) < TARIFA_MINIMA)
+    errs.tarifa = `La tarifa mínima es ₡${TARIFA_MINIMA}`;
   if (!form.primer_bus) errs.primer_bus = "Requerido";
   if (!form.ultimo_bus) errs.ultimo_bus = "Requerido";
   setFormErrors(errs);
@@ -339,7 +342,12 @@ export default function useAdminRuta(routeId) {
   }
 
   async function handleGuardar() {
-    if (!validateForm(form, setFormErrors)) return false;
+    if (!validateForm(form, setFormErrors)) {
+      if (form.tarifa && Number(form.tarifa) < TARIFA_MINIMA) {
+        alert(`La tarifa debe ser de al menos ₡${TARIFA_MINIMA} para poder procesar pagos.`);
+      }
+      return false;
+    }
 
     const origen = puntos.find((p) => p.tipo === "origen");
     const destino = puntos.find((p) => p.tipo === "destino");

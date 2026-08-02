@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Trash2, MapPin, Clock, Users } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
-import Navbar from "../components/layout/Navbar";
+import Navbar from "../components/layout/NavBar";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import PaymentForm from "../components/routes/PaymentForm";

@@ -44,6 +44,16 @@ class StopOut(BaseModel):
     route_id:  str
 
 
+class StopSync(BaseModel):
+    nombre:    str
+    lat:       float
+    lng:       float
+    tipo:      str
+    orden:     int
+    canton:    str
+    provincia: str
+
+
 # Ruta
 
 class RouteCreate(BaseModel):
@@ -99,12 +109,3 @@ class RouteOut(BaseModel):
     canton_destino:    str
     provincia_destino: str
     activa:            bool
-    
-class StopSync(BaseModel):
-    nombre:    str
-    lat:       float
-    lng:       float
-    tipo:      str
-    orden:     int
-    canton:    str
-    provincia: str

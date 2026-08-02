@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Users, ShoppingCart } from "lucide-react";
-import Navbar from "../components/layout/Navbar";
+import Navbar from "../components/layout/NavBar";
 import MapaRutas from "../components/routes/RouteMap";
 import ListaParadas from "../components/routes/StopList";
 import Card from "../components/ui/Card";

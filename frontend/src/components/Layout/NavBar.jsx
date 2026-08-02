@@ -1,69 +1,38 @@
-import { Bus, Moon, Sun, Menu, X, LogIn, LogOut } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  Bus,
+  Moon,
+  Sun,
+  Menu,
+  X,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  Ticket,
+} from "lucide-react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { AuthModal } from "../Layout/AuthModal";
-import { logout, observeAuthState, getCurrentProfile } from "../../services/authService";
+import { AuthModal } from "../layout/AuthModal";
+import { logout } from "../../services/authService";
+import { useAuth } from "../../context/AuthContext";
 
 const LINKS = [{ label: "Rutas", href: "/rutas" }];
 
 export default function Navbar({ darkMode, toggleDarkMode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [profile, setProfile] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem("profile");
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
-  });
   const { pathname } = useLocation();
+  const { profile, isAdmin, loading } = useAuth();
 
   const displayName = profile?.username || profile?.email || "Usuario";
   const initial = displayName.trim().charAt(0).toUpperCase();
 
-  const updateProfile = (p) => {
-    setProfile(p);
-    if (p) sessionStorage.setItem("profile", JSON.stringify(p));
-    else sessionStorage.removeItem("profile");
-  };
-
-  useEffect(() => {
-    const unsubscribe = observeAuthState(async (firebaseUser) => {
-      try {
-        if (!firebaseUser) {
-          updateProfile(null);
-          return;
-        }
-
-        const currentProfile = await getCurrentProfile();
-        updateProfile(currentProfile);
-      } catch (error) {
-        console.error("Error restaurando la sesión:", error);
-        updateProfile(null);
-      } finally {
-        setAuthLoading(false);
-      }
-    });
-
-    const timeout = setTimeout(() => setAuthLoading(false), 3000);
-
-    return () => {
-      unsubscribe();
-      clearTimeout(timeout);
-    };
-  }, []);
-
-  const handleAuthSuccess = (userProfile) => {
-    updateProfile(userProfile);
+  const handleAuthSuccess = () => {
     setShowModal(false);
   };
 
   const handleLogout = async () => {
     try {
       await logout();
-      updateProfile(null);
       setMenuOpen(false);
     } catch (error) {
       console.error("Error cerrando sesión:", error);
@@ -73,11 +42,13 @@ export default function Navbar({ darkMode, toggleDarkMode }) {
   return (
     <header className="border-b border-border bg-background">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+        <Link
+          to="/"
+          className="flex items-center gap-2 font-semibold tracking-tight"
+        >
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Bus size={14} />
           </div>
-
           <span className="text-foreground">
             506<span className="text-foreground">Tracker</span>
           </span>
@@ -93,22 +64,49 @@ export default function Navbar({ darkMode, toggleDarkMode }) {
               {link.label}
             </Link>
           ))}
+          {profile && (
+            <Link
+              to="/tickets"
+              className={`flex items-center gap-1.5 text-sm transition-colors hover:text-foreground ${pathname.startsWith("/tickets") ? "text-foreground" : "text-muted-foreground"}`}
+            >
+              <Ticket size={14} />
+              Tickets
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {authLoading && !profile ? (
+          {isAdmin && (
+            <Link
+              to="/admin"
+              title="Portal Admin"
+              className={`hidden md:inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors ${
+                pathname.startsWith("/admin")
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <ShieldCheck size={15} />
+            </Link>
+          )}
+
+          {loading && !profile ? (
             <div className="hidden h-9 w-32 animate-pulse rounded-md bg-muted md:block" />
           ) : profile ? (
             <>
               <div className="hidden md:inline-flex items-center gap-2 h-9 px-2 rounded-md border border-border text-sm text-foreground">
                 {profile.photo_url ? (
-                  <img src={profile.photo_url} alt={displayName} referrerPolicy="no-referrer" className="h-7 w-7 rounded-full object-cover" />
+                  <img
+                    src={profile.photo_url}
+                    alt={displayName}
+                    referrerPolicy="no-referrer"
+                    className="h-7 w-7 rounded-full object-cover"
+                  />
                 ) : (
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                     {initial}
                   </span>
                 )}
-
                 <span className="max-w-32 truncate">{displayName}</span>
               </div>
 
@@ -164,23 +162,57 @@ export default function Navbar({ darkMode, toggleDarkMode }) {
             </Link>
           ))}
 
-          {authLoading && !profile ? (
+          {profile && (
+            <Link
+              to="/tickets"
+              className="flex items-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+              onClick={() => setMenuOpen(false)}
+            >
+              <Ticket size={14} />
+              Tickets
+            </Link>
+          )}
+
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 my-2 text-sm transition-colors ${
+                pathname.startsWith("/admin")
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+              onClick={() => setMenuOpen(false)}
+            >
+              <ShieldCheck size={14} />
+              Portal Admin
+            </Link>
+          )}
+
+          {loading && !profile ? (
             <div className="my-2 h-9 w-32 animate-pulse rounded-md bg-muted" />
           ) : profile ? (
             <>
               <div className="flex items-center gap-2 py-2 text-sm text-foreground">
                 {profile.photo_url ? (
-                  <img src={profile.photo_url} alt={displayName} referrerPolicy="no-referrer" className="h-8 w-8 rounded-full object-cover" />
+                  <img
+                    src={profile.photo_url}
+                    alt={displayName}
+                    referrerPolicy="no-referrer"
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
                 ) : (
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                     {initial}
                   </span>
                 )}
-
                 <span>{displayName}</span>
               </div>
 
-              <button type="button" onClick={handleLogout} className="flex items-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+              >
                 <LogOut size={14} />
                 Cerrar sesión
               </button>
@@ -201,7 +233,12 @@ export default function Navbar({ darkMode, toggleDarkMode }) {
         </div>
       )}
 
-      {showModal && <AuthModal onClose={() => setShowModal(false)} onSuccess={handleAuthSuccess} />}
+      {showModal && (
+        <AuthModal
+          onClose={() => setShowModal(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      )}
     </header>
   );
 }
