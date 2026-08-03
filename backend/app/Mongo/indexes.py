@@ -4,13 +4,8 @@ def crear_indices():
     db.historial.create_index("usuario")
     db.historial.create_index([("consultado_en", -1)])
 
-    db.users.create_index(
-        "firebase_uid",
-        unique=True,
-    )
+    db.users.create_index("firebase_uid", unique=True)
+    db.users.create_index("email", unique=True, sparse=True)
 
-    db.users.create_index(
-        "email",
-        unique=True,
-        sparse=True,
-    )
+    db.paradas.create_index([("location", "2dsphere")])
+    db.paradas.create_index("route_id")

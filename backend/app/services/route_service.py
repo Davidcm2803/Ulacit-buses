@@ -39,6 +39,7 @@ def _route_out(doc: dict) -> dict:
 
 def _stop_out(doc: dict) -> dict:
     doc["id"] = str(doc.pop("_id"))
+    doc.pop("location", None)
     return doc
 
 
@@ -124,3 +125,47 @@ def replace_stops_for_route(db: Database, route_id: str, stops: list):
     result = db.paradas.insert_many(payload)
     docs = db.paradas.find({"_id": {"$in": result.inserted_ids}}).sort("orden", 1)
     return [_stop_out(doc) for doc in docs]
+
+
+def get_nearby_routes(
+    db: Database,
+    lat: float,
+    lng: float,
+    limit: int = 5,
+    max_distance_m: float = 10000,
+):
+    pipeline = [
+        {
+            "$geoNear": {
+                "near": {"type": "Point", "coordinates": [lng, lat]},
+                "distanceField": "distancia_m",
+                "maxDistance": max_distance_m,
+                "spherical": True,
+                "query": {"route_id": {"$exists": True}},
+            }
+        },
+        {
+            "$group": {
+                "_id": "$route_id",
+                "distancia_m": {"$min": "$distancia_m"},
+                "parada_cercana": {"$first": "$nombre"},
+            }
+        },
+        {"$sort": {"distancia_m": 1}},
+        {"$limit": limit},
+    ]
+
+    cercanas = list(db.paradas.aggregate(pipeline))
+    resultado = []
+    for c in cercanas:
+        oid = _valid_oid(c["_id"])
+        if not oid:
+            continue
+        doc = db.rutas.find_one({"_id": oid, "activa": True})
+        if not doc:
+            continue
+        ruta = _route_out(doc)
+        ruta["distancia_m"] = round(c["distancia_m"])
+        ruta["parada_cercana"] = c["parada_cercana"]
+        resultado.append(ruta)
+    return resultado

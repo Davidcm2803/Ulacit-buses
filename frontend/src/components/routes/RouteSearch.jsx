@@ -1,29 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
-import SelectField from "../ui/SelectField";
+import LocationSelect from "../ui/LocationSelect";
 import TarjetaRuta from "./RouteCard";
 import useRoutes from "../../hooks/useRoutes";
 
-const CANTONES = ["San José", "Heredia", "Alajuela", "Cartago", "Escazú"];
-
-export default function BuscadorRutas({ onSelectRuta }) {
-  const [origen, setOrigen] = useState("");
-  const [destino, setDestino] = useState("");
+export default function BuscadorRutas({ onSelectRuta, rutaSeleccionadaId }) {
+  const [origen, setOrigen] = useState({ provincia: "", canton: "" });
+  const [destino, setDestino] = useState({ provincia: "", canton: "" });
   const { resultados, buscar, loading, error, buscado } = useRoutes();
 
   function handleBuscar() {
-    buscar({ origen, destino });
+    buscar({
+      provincia_origen: origen.provincia,
+      canton_origen: origen.canton,
+      provincia_destino: destino.provincia,
+      canton_destino: destino.canton,
+    });
   }
+
+  useEffect(() => {
+    if (resultados.length > 0) onSelectRuta?.(resultados[0]);
+  }, [resultados]);
 
   return (
     <div>
       <Card>
-        <h2 className="mb-6 text-lg font-semibold text-foreground">Buscar tu ruta</h2>
+        <h2 className="mb-6 flex items-center gap-2 text-lg font-semibold text-foreground">
+          <Search size={18} className="text-primary" />
+          Buscar tu ruta
+        </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:items-end">
-          <SelectField label="Origen" value={origen} onChange={setOrigen} options={CANTONES} />
-          <SelectField label="Destino" value={destino} onChange={setDestino} options={CANTONES} />
+          <LocationSelect
+            label="Origen"
+            placeholder="Provincia o cantón"
+            value={origen}
+            onChange={setOrigen}
+          />
+          <LocationSelect
+            label="Destino"
+            placeholder="Provincia o cantón"
+            value={destino}
+            onChange={setDestino}
+          />
           <Button block onClick={handleBuscar} disabled={loading}>
             <Search size={16} />
             {loading ? "Buscando..." : "Buscar ruta"}
@@ -48,7 +68,12 @@ export default function BuscadorRutas({ onSelectRuta }) {
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {resultados.map((ruta) => (
-              <TarjetaRuta key={ruta.id} ruta={ruta} onClick={onSelectRuta} />
+              <TarjetaRuta
+                key={ruta.id}
+                ruta={ruta}
+                onClick={onSelectRuta}
+                seleccionada={ruta.id === rutaSeleccionadaId}
+              />
             ))}
           </div>
         </div>

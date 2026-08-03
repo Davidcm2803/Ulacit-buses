@@ -2,24 +2,24 @@ import {
   Bus,
   Moon,
   Sun,
-  Menu,
-  X,
   LogIn,
   LogOut,
   ShieldCheck,
   Ticket,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AuthModal } from "../layout/AuthModal";
+import BottomNav from "./BottomNav";
 import { logout } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 
 const LINKS = [{ label: "Rutas", href: "/rutas" }];
 
 export default function Navbar({ darkMode, toggleDarkMode }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showPerfilSheet, setShowPerfilSheet] = useState(false);
   const { pathname } = useLocation();
   const { profile, isAdmin, loading } = useAuth();
 
@@ -33,11 +33,16 @@ export default function Navbar({ darkMode, toggleDarkMode }) {
   const handleLogout = async () => {
     try {
       await logout();
-      setMenuOpen(false);
+      setShowPerfilSheet(false);
     } catch (error) {
       console.error("Error cerrando sesión:", error);
     }
   };
+
+  function handlePerfilClick() {
+    if (profile) setShowPerfilSheet(true);
+    else setShowModal(true);
+  }
 
   return (
     <header className="border-b border-border bg-background">
@@ -138,98 +143,62 @@ export default function Navbar({ darkMode, toggleDarkMode }) {
           >
             {darkMode ? <Sun size={15} /> : <Moon size={15} />}
           </button>
-
-          <button
-            type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted md:hidden"
-          >
-            {menuOpen ? <X size={15} /> : <Menu size={15} />}
-          </button>
         </div>
       </nav>
 
-      {menuOpen && (
-        <div className="border-t border-border bg-background px-4 py-3 md:hidden">
-          {LINKS.map((link) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className="block py-2 text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setMenuOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ))}
+      <BottomNav profile={profile} isAdmin={isAdmin} onPerfilClick={handlePerfilClick} />
 
-          {profile && (
-            <Link
-              to="/tickets"
-              className="flex items-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setMenuOpen(false)}
-            >
-              <Ticket size={14} />
-              Tickets
-            </Link>
-          )}
-
-          {isAdmin && (
-            <Link
-              to="/admin"
-              className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 my-2 text-sm transition-colors ${
-                pathname.startsWith("/admin")
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-              onClick={() => setMenuOpen(false)}
-            >
-              <ShieldCheck size={14} />
-              Portal Admin
-            </Link>
-          )}
-
-          {loading && !profile ? (
-            <div className="my-2 h-9 w-32 animate-pulse rounded-md bg-muted" />
-          ) : profile ? (
-            <>
-              <div className="flex items-center gap-2 py-2 text-sm text-foreground">
+      {showPerfilSheet && profile && (
+        <div className="fixed inset-0 z-50 flex items-end md:hidden" onClick={() => setShowPerfilSheet(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className="relative w-full rounded-t-2xl border-t border-border bg-background p-4 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
                 {profile.photo_url ? (
                   <img
                     src={profile.photo_url}
                     alt={displayName}
                     referrerPolicy="no-referrer"
-                    className="h-8 w-8 rounded-full object-cover"
+                    className="h-10 w-10 rounded-full object-cover"
                   />
                 ) : (
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
                     {initial}
                   </span>
                 )}
-                <span>{displayName}</span>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{displayName}</p>
+                  {profile.email && <p className="text-xs text-muted-foreground">{profile.email}</p>}
+                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                <LogOut size={14} />
-                Cerrar sesión
+              <button onClick={() => setShowPerfilSheet(false)} className="text-muted-foreground">
+                <X size={18} />
               </button>
-            </>
-          ) : (
+            </div>
+
+            {isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setShowPerfilSheet(false)}
+                className="mb-2 flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground"
+              >
+                <ShieldCheck size={16} />
+                Portal Admin
+              </Link>
+            )}
+
             <button
               type="button"
-              onClick={() => {
-                setShowModal(true);
-                setMenuOpen(false);
-              }}
-              className="flex items-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground"
             >
-              <LogIn size={14} />
-              Iniciar sesión
+              <LogOut size={16} />
+              Cerrar sesión
             </button>
-          )}
+          </div>
         </div>
       )}
 

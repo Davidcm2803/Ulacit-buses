@@ -52,6 +52,7 @@ const paradaOrigen = db.paradas.insertOne({
     nombre: "Terminal 7-10",
     lat: 9.9333,
     lng: -84.0833,
+    location: { type: "Point", coordinates: [-84.0833, 9.9333] },
     tipo: "origen",
     orden: 0,
     canton: "San José",
@@ -65,6 +66,7 @@ const paradaIntermedia = db.paradas.insertOne({
     nombre: "Parada La Sabana",
     lat: 9.9381,
     lng: -84.1057,
+    location: { type: "Point", coordinates: [-84.1057, 9.9381] },
     tipo: "parada",
     orden: 1,
     canton: "San José",
@@ -78,6 +80,7 @@ const paradaDestino = db.paradas.insertOne({
     nombre: "Terminal Escazú",
     lat: 9.9167,
     lng: -84.1333,
+    location: { type: "Point", coordinates: [-84.1333, 9.9167] },
     tipo: "destino",
     orden: 2,
     canton: "Escazú",
@@ -96,7 +99,6 @@ const historial = db.historial.insertOne({
     consultado_en: new Date()
 });
 
-// Ticket de compra, sujeto a ruta + hora de salida específica
 const ticket = db.tickets.insertOne({
     _id: ObjectId(),
     usuario_id: usuario.insertedId,

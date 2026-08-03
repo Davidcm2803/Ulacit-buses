@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Navbar from "../components/layout/NavBar";
 import MapaRutas from "../components/routes/RouteMap";
 import BuscadorRutas from "../components/routes/RouteSearch";
+import BuscadorCercano from "../components/routes/NearbySearch";
 import { useDarkMode } from "../hooks/useDarkMode";
 import useTrazadoRuta from "../hooks/useRouteLayout";
 import { routesService } from "../config/api";
@@ -11,10 +12,12 @@ export default function Home() {
   const [rutaDestacada, setRutaDestacada] = useState(null);
   const [paradaSeleccionada, setParadaSeleccionada] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rutasCercanas, setRutasCercanas] = useState([]);
+  const [ubicacionUsuario, setUbicacionUsuario] = useState(null);
 
   async function cargarRutaConParadas(ruta) {
     try {
-      const paradas = await routesService.getStops(ruta.id);
+      const paradas = ruta.paradas ?? (await routesService.getStops(ruta.id));
       setRutaDestacada({ ...ruta, paradas });
       setParadaSeleccionada(null);
     } catch (e) {
@@ -36,7 +39,7 @@ export default function Home() {
 
   return (
     <div className={darkMode ? "dark" : ""}>
-      <div className="min-h-screen bg-background transition-colors duration-300">
+      <div className="min-h-screen bg-background pb-20 transition-colors duration-300 md:pb-0">
         <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="mb-8">
@@ -48,6 +51,37 @@ export default function Home() {
             </p>
           </div>
 
+          <div className="mb-6">
+            <BuscadorCercano
+              onRutasCercanas={(rutas) => {
+                setRutasCercanas(rutas);
+                if (rutas.length > 0) cargarRutaConParadas(rutas[0]);
+              }}
+              onUbicacion={setUbicacionUsuario}
+            />
+            {rutasCercanas.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {rutasCercanas.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => cargarRutaConParadas(r)}
+                    className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                      rutaDestacada?.id === r.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {r.nombre} · {r.parada_cercana} ({r.distancia_m} m)
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-8">
+            <BuscadorRutas onSelectRuta={cargarRutaConParadas} rutaSeleccionadaId={rutaDestacada?.id} />
+          </div>
+
           <div className="mb-8">
             {loading && (
               <div className="flex h-[400px] items-center justify-center rounded-lg border border-border">
@@ -57,11 +91,13 @@ export default function Home() {
             {!loading && rutaDestacada && (
               <>
                 <MapaRutas
+                  key={rutaDestacada.id}
                   coordenadasRecorrido={
                     coordenadas.length ? coordenadas : (rutaDestacada.trazado ?? [])
                   }
                   paradas={rutaDestacada.paradas ?? []}
                   onSelectParada={setParadaSeleccionada}
+                  ubicacionUsuario={ubicacionUsuario}
                 />
                 <p className="mt-2 text-sm text-muted-foreground">
                   Mostrando: <span className="font-medium text-foreground">{rutaDestacada.nombre}</span>
@@ -77,8 +113,6 @@ export default function Home() {
               </div>
             )}
           </div>
-
-          <BuscadorRutas onSelectRuta={cargarRutaConParadas} />
         </main>
       </div>
     </div>

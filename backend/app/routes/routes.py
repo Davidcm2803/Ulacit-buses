@@ -1,10 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.middlewares.auth_middleware import require_admin
-from app.models.route import RouteCreate, RouteUpdate, RouteOut, StopOut, StopSync
+from app.models.route import RouteCreate, RouteUpdate, RouteOut, RouteNearbyOut, StopOut, StopSync
 from app.services import route_service, stop_service
 
 router = APIRouter(prefix="/routes", tags=["routes"])
+
+
+@router.get("/nearby", response_model=list[RouteNearbyOut])
+def get_nearby_routes(
+    lat: float = Query(...),
+    lng: float = Query(...),
+    limit: int = Query(5, ge=1, le=20),
+    max_distance_km: float = Query(10, gt=0, le=100),
+):
+    from app.Mongo.connection import db
+    return route_service.get_nearby_routes(db, lat, lng, limit, max_distance_km * 1000)
 
 
 @router.get("", response_model=list[RouteOut])

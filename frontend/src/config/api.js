@@ -40,11 +40,18 @@ const createService = (resource) => ({
 
 export const routesService = {
   ...createService('routes'),
-  getStops:  (id)         => http.get(`${BASE}/routes/${id}/stops`),
+  getStops:  (id)          => http.get(`${BASE}/routes/${id}/stops`),
   syncStops: (id, paradas) => http.put(`${BASE}/routes/${id}/stops`, paradas),
+  getNearby: (lat, lng, limit = 5) =>
+    http.get(`${BASE}/routes/nearby?lat=${lat}&lng=${lng}&limit=${limit}`),
 }
 
-export const stopsService = createService('stops')
+export const stopsService = {
+  ...createService('stops'),
+  getNearby: (lat, lng, limit = 10) =>
+    http.get(`${BASE}/stops/nearby?lat=${lat}&lng=${lng}&limit=${limit}`),
+}
+
 export const authService  = createService('auth')
 
 export const paymentsService = {

@@ -54,6 +54,10 @@ class StopSync(BaseModel):
     provincia: str
 
 
+class StopNearbyOut(StopOut):
+    distancia_m: Optional[float] = None
+
+
 # Ruta
 
 class RouteCreate(BaseModel):
@@ -109,3 +113,8 @@ class RouteOut(BaseModel):
     canton_destino:    str
     provincia_destino: str
     activa:            bool
+
+
+class RouteNearbyOut(RouteOut):
+    distancia_m: Optional[float] = None
+    parada_cercana: Optional[str] = None
