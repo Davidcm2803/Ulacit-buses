@@ -22,11 +22,21 @@ def get_nearby_routes(
 def list_routes(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    origen: str | None = Query(None),
-    destino: str | None = Query(None),
+    provincia_origen: str | None = Query(None),
+    canton_origen: str | None = Query(None),
+    provincia_destino: str | None = Query(None),
+    canton_destino: str | None = Query(None),
 ):
     from app.Mongo.connection import db
-    return route_service.get_all_routes(db, skip, limit, origen, destino)
+    return route_service.get_all_routes(
+        db,
+        skip,
+        limit,
+        provincia_origen,
+        canton_origen,
+        provincia_destino,
+        canton_destino,
+    )
 
 
 @router.get("/{route_id}", response_model=RouteOut)

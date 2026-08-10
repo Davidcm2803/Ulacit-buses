@@ -51,6 +51,24 @@ function MapInvalidator() {
   return null;
 }
 
+function MapaAutoFit({ puntos }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!puntos || puntos.length === 0) return;
+
+    if (puntos.length === 1) {
+      map.setView(puntos[0], 14);
+      return;
+    }
+
+    const bounds = L.latLngBounds(puntos);
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }, [map, puntos]);
+
+  return null;
+}
+
 export default function MapaRutas({
   coordenadasRecorrido = [],
   paradas = [],
@@ -59,10 +77,16 @@ export default function MapaRutas({
 }) {
   const polylinePositions = coordenadasRecorrido.map((c) => [c.lat, c.lng]);
 
+  const puntosParaEncuadrar =
+    polylinePositions.length > 1
+      ? polylinePositions
+      : paradas.map((p) => [p.lat, p.lng]);
+
   return (
     <div className="relative h-[400px] w-full overflow-hidden rounded-lg border border-border shadow-sm sm:h-[500px] [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full [&_.leaflet-container]:z-0">
       <MapContainer center={CR_CENTER} zoom={CR_ZOOM} scrollWheelZoom zoomSnap={0.3} zoomDelta={0.3}>
         <MapInvalidator />
+        <MapaAutoFit puntos={puntosParaEncuadrar} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

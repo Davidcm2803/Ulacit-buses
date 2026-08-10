@@ -14,6 +14,8 @@ class TicketOut(BaseModel):
     ruta_nombre: str
     parada_nombre: str
     horario: str
+    salida_at: Optional[datetime] = None
+    estado_viaje: str = "sin_datos"
     cantidad: int
     monto: float
     estado: str
@@ -36,4 +38,4 @@ class TicketConRuta(TicketOut):
     trazado: List[Coordenada] = []
     tiempo_min: Optional[int] = None
     distancia_km: Optional[float] = None
-    paradas: List[ParadaTicket] = []   # nuevo
+    paradas: List[ParadaTicket] = []

@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bus, MapPin, Clock, Users, Ticket as TicketIcon } from "lucide-react";
+import { Bus, MapPin, Clock, Users, Ticket as TicketIcon, CheckCircle2 } from "lucide-react";
 import Navbar from "../components/layout/NavBar";
 import Card from "../components/ui/Card";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { ticketsService } from "../config/api";
+import { labelEstadoViaje, esViajeFinalizado } from "../lib/ticketTracking";
 
 function EstadoBadge({ estado }) {
   const map = {
@@ -17,6 +18,71 @@ function EstadoBadge({ estado }) {
     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
       {label}
     </span>
+  );
+}
+
+function ViajeBadge({ estadoViaje }) {
+  const map = {
+    por_salir: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    en_curso: "bg-primary/10 text-primary",
+    finalizado: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    sin_datos: "bg-muted text-muted-foreground",
+  };
+  const cls = map[estadoViaje] ?? map.sin_datos;
+  return (
+    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
+      {labelEstadoViaje(estadoViaje)}
+    </span>
+  );
+}
+
+function TarjetaTicket({ ticket }) {
+  return (
+    <Link to={`/tickets/${ticket.id}`}>
+      <Card className="transition-colors hover:border-primary/50">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Bus size={15} />
+            </div>
+            <span className="font-semibold text-foreground">{ticket.ruta_nombre}</span>
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            <EstadoBadge estado={ticket.estado} />
+            <ViajeBadge estadoViaje={ticket.estado_viaje} />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <MapPin size={14} />
+            <span>{ticket.parada_nombre}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock size={14} />
+            <span>Horario: {ticket.horario}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Users size={14} />
+            <span>{ticket.cantidad} persona{ticket.cantidad !== 1 && "s"}</span>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+          <span className="text-xs text-muted-foreground">
+            Comprado el{" "}
+            {new Date(ticket.createdAt).toLocaleDateString("es-CR", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+          <span className="text-sm font-semibold text-primary">
+            ₡{ticket.monto.toLocaleString()}
+          </span>
+        </div>
+      </Card>
+    </Link>
   );
 }
 
@@ -33,6 +99,16 @@ export default function Tickets() {
       .catch((e) => setError(e.message || "No se pudieron cargar tus tickets."))
       .finally(() => setLoading(false));
   }, []);
+
+  const { activos, finalizados } = useMemo(() => {
+    const activos = [];
+    const finalizados = [];
+    for (const t of tickets) {
+      if (esViajeFinalizado(t)) finalizados.push(t);
+      else activos.push(t);
+    }
+    return { activos, finalizados };
+  }, [tickets]);
 
   return (
     <div className={darkMode ? "dark" : ""}>
@@ -66,53 +142,36 @@ export default function Tickets() {
           )}
 
           {!loading && !error && tickets.length > 0 && (
-            <div className="flex flex-col gap-4">
-              {tickets.map((t) => (
-                <Link key={t.id} to={`/tickets/${t.id}`}>
-                  <Card className="transition-colors hover:border-primary/50">
-                    <div className="mb-3 flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                          <Bus size={15} />
-                        </div>
-                        <span className="font-semibold text-foreground">
-                          {t.ruta_nombre}
-                        </span>
-                      </div>
-                      <EstadoBadge estado={t.estado} />
-                    </div>
+            <div className="flex flex-col gap-8">
+              <section>
+                <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Bus size={14} />
+                  Viajes activos ({activos.length})
+                </h2>
+                {activos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No tenés viajes activos.</p>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    {activos.map((t) => (
+                      <TarjetaTicket key={t.id} ticket={t} />
+                    ))}
+                  </div>
+                )}
+              </section>
 
-                    <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={14} />
-                        <span>{t.parada_nombre}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock size={14} />
-                        <span>Horario: {t.horario}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users size={14} />
-                        <span>{t.cantidad} persona{t.cantidad !== 1 && "s"}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-                      <span className="text-xs text-muted-foreground">
-                        Comprado el{" "}
-                        {new Date(t.createdAt).toLocaleDateString("es-CR", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                      <span className="text-sm font-semibold text-primary">
-                        ₡{t.monto.toLocaleString()}
-                      </span>
-                    </div>
-                  </Card>
-                </Link>
-              ))}
+              {finalizados.length > 0 && (
+                <section>
+                  <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    <CheckCircle2 size={14} />
+                    Viajes finalizados ({finalizados.length})
+                  </h2>
+                  <div className="flex flex-col gap-4">
+                    {finalizados.map((t) => (
+                      <TarjetaTicket key={t.id} ticket={t} />
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </main>

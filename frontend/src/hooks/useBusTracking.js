@@ -12,8 +12,6 @@ function distanciaMetros(a, b) {
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
-// Interpola una posición sobre una lista de puntos [{lat,lng}, ...]
-// según una fracción de avance entre 0 y 1.
 function interpolarSobreTrazado(trazado, fraccion) {
   if (!trazado || trazado.length === 0) return null;
   if (trazado.length === 1) return trazado[0];
@@ -48,21 +46,6 @@ function interpolarSobreTrazado(trazado, fraccion) {
   return trazado[trazado.length - 1];
 }
 
-function calcularHorario(horario, tiempoMin, referencia) {
-  if (!horario) return null;
-  const [h, m] = horario.split(":").map(Number);
-  const salida = new Date(referencia);
-  salida.setHours(h, m, 0, 0);
-  const llegada = new Date(salida.getTime() + (tiempoMin ?? 0) * 60000);
-  return { salida, llegada };
-}
-
-/**
- * Simula el recorrido del bus sobre el trazado de la ruta, usando el
- * horario programado y la duración estimada (tiempo_min). No hay GPS
- * real: se calcula qué tan avanzado "debería" ir el bus según la hora
- * actual.
- */
 export default function useBusTracking(ticket) {
   const [ahora, setAhora] = useState(() => new Date());
 
@@ -71,16 +54,15 @@ export default function useBusTracking(ticket) {
     return () => clearInterval(interval);
   }, []);
 
-  if (!ticket || !ticket.horario) {
+  if (!ticket || !ticket.salida_at) {
     return { estado: "sin_datos", mensaje: "No hay información del horario.", posicion: null, progreso: 0 };
   }
 
-  const horarios = calcularHorario(ticket.horario, ticket.tiempo_min, ahora);
-  if (!horarios) {
-    return { estado: "sin_datos", mensaje: "No hay información del horario.", posicion: null, progreso: 0 };
-  }
+  const salida = new Date(ticket.salida_at);
+  const llegada = ticket.tiempo_min
+    ? new Date(salida.getTime() + ticket.tiempo_min * 60000)
+    : null;
 
-  const { salida, llegada } = horarios;
   const trazado = ticket.trazado ?? [];
 
   if (ahora < salida) {
@@ -94,7 +76,7 @@ export default function useBusTracking(ticket) {
     };
   }
 
-  if (!ticket.tiempo_min || ahora >= llegada) {
+  if (!llegada || ahora >= llegada) {
     return {
       estado: "llegado",
       mensaje: "El bus ya llegó a su destino",

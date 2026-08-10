@@ -7,11 +7,17 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  HomeIcon,
+  Sun,
+  Moon,
 } from "lucide-react";
+
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
+import { useDarkMode } from "../../hooks/useDarkMode";
 
 const NAV = [
+  { label: "Inicio", href: "/", icon: HomeIcon },
   { label: "Panel", href: "/admin", icon: LayoutDashboard },
   { label: "Rutas", href: "/admin/rutas", icon: Map },
   { label: "Paradas", href: "/admin/paradas", icon: MapPin },
@@ -20,6 +26,7 @@ const NAV = [
 export default function AdminSidebar() {
   const { pathname } = useLocation();
   const [colapsado, setColapsado] = useState(false); // solo-iconos en desktop
+  const { darkMode, toggleDarkMode } = useDarkMode();
 
   return (
     <>
@@ -77,6 +84,21 @@ export default function AdminSidebar() {
           </button>
 
           <button
+            type="button"
+            onClick={toggleDarkMode}
+            title={colapsado ? (darkMode ? "Modo claro" : "Modo oscuro") : undefined}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/50 transition-colors hover:bg-white/10 hover:text-white",
+              colapsado && "justify-center px-2"
+            )}
+          >
+            {darkMode ? <Sun size={16} className="shrink-0" /> : <Moon size={16} className="shrink-0" />}
+            <span className={cn(colapsado && "hidden")}>
+              {darkMode ? "Modo claro" : "Modo oscuro"}
+            </span>
+          </button>
+
+          <button
             title={colapsado ? "Cerrar sesión" : undefined}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/50 transition-colors hover:bg-white/10 hover:text-white",
@@ -106,6 +128,14 @@ export default function AdminSidebar() {
             {label}
           </Link>
         ))}
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="flex flex-col items-center gap-1 px-3 py-1 text-xs text-white/50"
+        >
+          {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+          {darkMode ? "Claro" : "Oscuro"}
+        </button>
         <button className="flex flex-col items-center gap-1 px-3 py-1 text-xs text-white/50">
           <LogOut size={20} />
           Salir

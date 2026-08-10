@@ -1,11 +1,12 @@
 ﻿import os
-import sys
+import time
 import math
 import random
 import argparse
 from pathlib import Path
 from datetime import datetime
 
+import requests
 from bson import ObjectId
 from pymongo import MongoClient
 try:
@@ -16,6 +17,9 @@ except ImportError:
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:admin1234@localhost:27018/?authSource=admin")
 DB_NAME = os.getenv("MONGO_DB_NAME", "506trackerdb")
+ORS_API_KEY = os.getenv("ORS_API_KEY") or os.getenv("VITE_ORS_API_KEY")
+ORS_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
+
 client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
 db = client[DB_NAME]
 
@@ -75,6 +79,40 @@ CANTONES_CR = {
 
 TIPO_LABEL = {"origen": "Origen", "parada": "Parada", "destino": "Destino"}
 
+# (provincia_origen, canton_origen, provincia_destino, canton_destino)
+RUTAS_INTRA_PROVINCIA = [
+    ("San Jose", "San Jose", "San Jose", "Escazu"),
+    ("San Jose", "San Jose", "San Jose", "Desamparados"),
+    ("San Jose", "San Jose", "San Jose", "Curridabat"),
+    ("San Jose", "San Jose", "San Jose", "Goicoechea"),
+    ("Alajuela", "Alajuela", "Alajuela", "Grecia"),
+    ("Alajuela", "Alajuela", "Alajuela", "Naranjo"),
+    ("Cartago", "Cartago", "Cartago", "Paraiso"),
+    ("Cartago", "Cartago", "Cartago", "La Union"),
+    ("Heredia", "Heredia", "Heredia", "Santo Domingo"),
+    ("Heredia", "Heredia", "Heredia", "San Rafael"),
+    ("Guanacaste", "Liberia", "Guanacaste", "Santa Cruz"),
+    ("Puntarenas", "Puntarenas", "Puntarenas", "Esparza"),
+    ("Limon", "Limon", "Limon", "Siquirres"),
+]
+
+RUTAS_INTER_PROVINCIA = [
+    ("San Jose", "San Jose", "Heredia", "Heredia"),
+    ("San Jose", "San Jose", "Alajuela", "Alajuela"),
+    ("San Jose", "San Jose", "Cartago", "Cartago"),
+    ("Heredia", "Heredia", "Alajuela", "Alajuela"),
+    ("Heredia", "Heredia", "Cartago", "Cartago"),
+    ("Alajuela", "Alajuela", "Cartago", "Cartago"),
+    ("San Jose", "San Jose", "Guanacaste", "Liberia"),
+    ("San Jose", "San Jose", "Puntarenas", "Puntarenas"),
+    ("San Jose", "San Jose", "Limon", "Limon"),
+    ("Alajuela", "Alajuela", "Puntarenas", "Puntarenas"),
+    ("Cartago", "Cartago", "Limon", "Limon"),
+    ("Heredia", "Heredia", "Alajuela", "San Ramon"),
+    ("San Jose", "Desamparados", "Cartago", "Cartago"),
+    ("San Jose", "San Jose", "Alajuela", "San Ramon"),
+]
+
 
 def haversine_km(a, b):
     R = 6371.0
@@ -101,6 +139,34 @@ def interpolar_trazado(a, b, puntos_extra=4, jitter=0.004):
     return trazado
 
 
+def trazado_por_calles(coord_origen, coord_destino):
+    if not ORS_API_KEY:
+        return None
+    try:
+        res = requests.post(
+            ORS_URL,
+            headers={"Authorization": ORS_API_KEY, "Content-Type": "application/json"},
+            json={"coordinates": [
+                [coord_origen[1], coord_origen[0]],
+                [coord_destino[1], coord_destino[0]],
+            ]},
+            timeout=15,
+        )
+        if not res.ok:
+            print(f"  ORS respondio {res.status_code}, uso linea recta")
+            return None
+        data = res.json()
+        geom = data["features"][0]["geometry"]["coordinates"]
+        summary = data["features"][0]["properties"]["summary"]
+        trazado = [{"lat": round(lat, 5), "lng": round(lng, 5)} for lng, lat in geom]
+        distancia_km = round(summary["distance"] / 1000, 1)
+        tiempo_min = max(10, round(summary["duration"] / 60))
+        return trazado, distancia_km, tiempo_min
+    except Exception as e:
+        print(f"  Error ORS: {e}, uso linea recta")
+        return None
+
+
 def abreviar(nombre, largo=3):
     letras = "".join(w[0] for w in nombre.split() if w[0].isalpha())
     if len(letras) >= largo:
@@ -124,57 +190,71 @@ def generar_horarios():
 def construir_rutas():
     rutas = []
     codigos_usados = set()
-    for provincia, info in CANTONES_CR.items():
-        capital = info["capital"]
-        cantones = info["cantones"]
-        coord_capital = cantones[capital]
-        destinos = [c for c in cantones if c != capital]
-        for destino in destinos:
-            coord_destino = cantones[destino]
-            distancia_recta = haversine_km(coord_capital, coord_destino)
+    pares = RUTAS_INTRA_PROVINCIA + RUTAS_INTER_PROVINCIA
+
+    for i, (prov_o, canton_o, prov_d, canton_d) in enumerate(pares):
+        coord_origen = CANTONES_CR[prov_o]["cantones"][canton_o]
+        coord_destino = CANTONES_CR[prov_d]["cantones"][canton_d]
+
+        print(f"[{i + 1}/{len(pares)}] {canton_o} -> {canton_d}")
+
+        resultado_ors = trazado_por_calles(coord_origen, coord_destino)
+        if resultado_ors:
+            trazado, distancia_km, tiempo_min = resultado_ors
+            time.sleep(1.6)  # respeta el rate limit del free tier de ORS
+        else:
+            distancia_recta = haversine_km(coord_origen, coord_destino)
             distancia_km = round(distancia_recta * 1.35, 1)
             tiempo_min = max(10, round((distancia_km / 28) * 60))
-            base_cod = f"{abreviar(capital)}-{abreviar(destino)}"
-            codigo = base_cod
-            n = 1
-            while codigo in codigos_usados:
-                n += 1
-                codigo = f"{base_cod}-{n:02d}"
-            codigos_usados.add(codigo)
-            primer_bus, ultimo_bus, frecuencia = generar_horarios()
-            trazado = interpolar_trazado(coord_capital, coord_destino, puntos_extra=4)
-            rutas.append({
-                "nombre": f"{capital} - {destino}",
-                "codigo": codigo,
-                "descripcion": f"Ruta de {capital} hacia {destino}, provincia de {provincia}",
-                "primer_bus": primer_bus,
-                "ultimo_bus": ultimo_bus,
-                "frecuencia": frecuencia,
-                "tarifa": generar_tarifa(distancia_km),
-                "distancia_km": distancia_km,
-                "tiempo_min": tiempo_min,
-                "trazado": trazado,
-                "canton_origen": capital,
-                "provincia_origen": provincia,
-                "canton_destino": destino,
-                "provincia_destino": provincia,
-                "activa": True,
-                "createdAt": datetime.utcnow(),
-                "_coord_origen": coord_capital,
-                "_coord_destino": coord_destino,
-            })
+            trazado = interpolar_trazado(coord_origen, coord_destino, puntos_extra=4)
+
+        base_cod = f"{abreviar(canton_o)}-{abreviar(canton_d)}"
+        codigo = base_cod
+        n = 1
+        while codigo in codigos_usados:
+            n += 1
+            codigo = f"{base_cod}-{n:02d}"
+        codigos_usados.add(codigo)
+
+        primer_bus, ultimo_bus, frecuencia = generar_horarios()
+
+        rutas.append({
+            "nombre": f"{canton_o} - {canton_d}",
+            "codigo": codigo,
+            "descripcion": f"Ruta de {canton_o} ({prov_o}) hacia {canton_d} ({prov_d})",
+            "primer_bus": primer_bus,
+            "ultimo_bus": ultimo_bus,
+            "frecuencia": frecuencia,
+            "tarifa": generar_tarifa(distancia_km),
+            "distancia_km": distancia_km,
+            "tiempo_min": tiempo_min,
+            "trazado": trazado,
+            "canton_origen": canton_o,
+            "provincia_origen": prov_o,
+            "canton_destino": canton_d,
+            "provincia_destino": prov_d,
+            "activa": True,
+            "createdAt": datetime.utcnow(),
+        })
+
     return rutas
 
 
 def construir_paradas(ruta, route_id):
     trazado = ruta["trazado"]
+    total = len(trazado)
+
     puntos = [(trazado[0], "origen", ruta["canton_origen"], ruta["provincia_origen"])]
-    intermedios_idx = [i for i in range(1, len(trazado) - 1)]
-    random.shuffle(intermedios_idx)
-    for idx in sorted(intermedios_idx[: random.choice([1, 2])]):
-        puntos.append((trazado[idx], "parada", ruta["canton_origen"], ruta["provincia_origen"]))
+
+    if total > 2:
+        cantidad = 2 if total > 6 else 1
+        idx_disponibles = list(range(1, total - 1))
+        random.shuffle(idx_disponibles)
+        for idx in sorted(idx_disponibles[:cantidad]):
+            puntos.append((trazado[idx], "parada", ruta["canton_origen"], ruta["provincia_origen"]))
+
     puntos.append((trazado[-1], "destino", ruta["canton_destino"], ruta["provincia_destino"]))
-    puntos.sort(key=lambda p: trazado.index(p[0]))
+
     paradas = []
     for i, (punto, tipo, canton, provincia) in enumerate(puntos):
         paradas.append({
@@ -195,8 +275,10 @@ def construir_paradas(ruta, route_id):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--yes", action="store_true")
-    parser.add_argument("--reset", action="store_true")
     args = parser.parse_args()
+
+    if not ORS_API_KEY:
+        print("Aviso: no hay ORS_API_KEY configurada, todas las rutas se generaran en linea recta.")
 
     rutas = construir_rutas()
     print(f"Se generaron {len(rutas)} rutas. Conectando a: {DB_NAME}")
@@ -207,22 +289,8 @@ def main():
             print("Cancelado.")
             return
 
-    if args.reset:
-        codigos = [r["codigo"] for r in rutas]
-        rutas_previas = list(db.rutas.find({"codigo": {"$in": codigos}}, {"_id": 1}))
-        ids_previas = [str(r["_id"]) for r in rutas_previas]
-        if ids_previas:
-            db.paradas.delete_many({"route_id": {"$in": ids_previas}})
-            db.rutas.delete_many({"_id": {"$in": [r["_id"] for r in rutas_previas]}})
-            print(f"Borradas {len(ids_previas)} rutas previas.")
-
-    insertadas, saltadas = 0, 0
+    insertadas = 0
     for ruta in rutas:
-        if db.rutas.find_one({"codigo": ruta["codigo"]}):
-            saltadas += 1
-            continue
-        ruta.pop("_coord_origen")
-        ruta.pop("_coord_destino")
         ruta["_id"] = ObjectId()
         db.rutas.insert_one(ruta)
         paradas = construir_paradas(ruta, ruta["_id"])
@@ -230,7 +298,7 @@ def main():
             db.paradas.insert_many(paradas)
         insertadas += 1
 
-    print(f"Listo. Insertadas: {insertadas}. Saltadas: {saltadas}.")
+    print(f"Listo. Insertadas: {insertadas}.")
 
 
 if __name__ == "__main__":

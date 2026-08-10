@@ -21,7 +21,7 @@ export default function BuscadorRutas({ onSelectRuta, rutaSeleccionadaId }) {
   }
 
   useEffect(() => {
-    if (resultados.length > 0) onSelectRuta?.(resultados[0]);
+    if (resultados.length > 0) onSelectRuta?.(resultados[0], { auto: true });
   }, [resultados]);
 
   return (
@@ -71,7 +71,7 @@ export default function BuscadorRutas({ onSelectRuta, rutaSeleccionadaId }) {
               <TarjetaRuta
                 key={ruta.id}
                 ruta={ruta}
-                onClick={onSelectRuta}
+                onClick={(r) => onSelectRuta?.(r, { auto: false })}
                 seleccionada={ruta.id === rutaSeleccionadaId}
               />
             ))}

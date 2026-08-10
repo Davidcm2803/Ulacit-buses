@@ -15,24 +15,26 @@ def _valid_oid(id: str) -> ObjectId | None:
 def _route_out(doc: dict) -> dict:
     doc["id"] = str(doc.pop("_id"))
 
-    # Normalizar campos del seed viejo al esquema nuevo
     if "ruta_nombre" in doc and "nombre" not in doc:
         doc["nombre"] = doc.pop("ruta_nombre")
     if "horario" in doc:
         horario = doc.pop("horario")
-        doc.setdefault("primer_bus",  horario.get("primer_bus", ""))
-        doc.setdefault("ultimo_bus",  horario.get("ultimo_bus", ""))
-        doc.setdefault("frecuencia",  horario.get("frecuencia_bus", 0))
+        doc.setdefault("primer_bus", horario.get("primer_bus", ""))
+        doc.setdefault("ultimo_bus", horario.get("ultimo_bus", ""))
+        doc.setdefault("frecuencia", horario.get("frecuencia_bus", 0))
     if "coordenadas_recorrido" in doc and "trazado" not in doc:
         doc["trazado"] = doc.pop("coordenadas_recorrido")
 
-    # Campos que pueden no existir en el seed
-    doc.setdefault("codigo",       "")
-    doc.setdefault("descripcion",  "")
+    doc.setdefault("codigo", "")
+    doc.setdefault("descripcion", "")
     doc.setdefault("distancia_km", None)
-    doc.setdefault("tiempo_min",   None)
-    doc.setdefault("trazado",      [])
-    doc.setdefault("activa",       True)
+    doc.setdefault("tiempo_min", None)
+    doc.setdefault("trazado", [])
+    doc.setdefault("activa", True)
+    doc.setdefault("canton_origen", "")
+    doc.setdefault("provincia_origen", "")
+    doc.setdefault("canton_destino", "")
+    doc.setdefault("provincia_destino", "")
 
     return doc
 
@@ -43,30 +45,24 @@ def _stop_out(doc: dict) -> dict:
     return doc
 
 
-
 def get_all_routes(
     db: Database,
     skip: int = 0,
     limit: int = 100,
-    origen: str | None = None,
-    destino: str | None = None,
+    provincia_origen: str | None = None,
+    canton_origen: str | None = None,
+    provincia_destino: str | None = None,
+    canton_destino: str | None = None,
 ):
     query = {}
-    if origen:
-        query["$or"] = query.get("$or", []) + [
-            {"canton_origen": origen},
-            {"provincia_origen": origen},
-        ]
-    if destino:
-        cond = [
-            {"canton_destino": destino},
-            {"provincia_destino": destino},
-        ]
-        if "$or" in query:
-            # ya hay condición de origen, combinar con $and
-            query = {"$and": [{"$or": query.pop("$or")}, {"$or": cond}]}
-        else:
-            query["$or"] = cond
+    if provincia_origen:
+        query["provincia_origen"] = provincia_origen
+    if canton_origen:
+        query["canton_origen"] = canton_origen
+    if provincia_destino:
+        query["provincia_destino"] = provincia_destino
+    if canton_destino:
+        query["canton_destino"] = canton_destino
 
     cursor = db.rutas.find(query).skip(skip).limit(limit)
     return [_route_out(doc) for doc in cursor]
