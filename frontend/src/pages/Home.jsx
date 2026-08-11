@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowUp, Ticket } from "lucide-react";
 import Navbar from "../components/layout/NavBar";
 import MapaRutas from "../components/routes/RouteMap";
 import BuscadorRutas from "../components/routes/RouteSearch";
@@ -9,12 +11,14 @@ import { routesService } from "../config/api";
 
 export default function Home() {
   const { darkMode, toggleDarkMode } = useDarkMode();
+  const navigate = useNavigate();
   const [rutaDestacada, setRutaDestacada] = useState(null);
   const [paradaSeleccionada, setParadaSeleccionada] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rutasCercanas, setRutasCercanas] = useState([]);
   const [ubicacionUsuario, setUbicacionUsuario] = useState(null);
   const mapaRef = useRef(null);
+  const resultadosRef = useRef(null);
 
   async function cargarRutaConParadas(ruta, { scroll = false } = {}) {
     try {
@@ -27,6 +31,10 @@ export default function Home() {
     } catch (e) {
       console.error("No se pudieron cargar las paradas:", e);
     }
+  }
+
+  function volverAResultados() {
+    resultadosRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   useEffect(() => {
@@ -59,8 +67,7 @@ export default function Home() {
             <BuscadorCercano
               onRutasCercanas={(rutas) => {
                 setRutasCercanas(rutas);
-                if (rutas.length > 0)
-                  cargarRutaConParadas(rutas[0], { scroll: true });
+                if (rutas.length > 0) cargarRutaConParadas(rutas[0], { scroll: true });
               }}
               onUbicacion={setUbicacionUsuario}
             />
@@ -83,7 +90,7 @@ export default function Home() {
             )}
           </div>
 
-          <div className="mb-8">
+          <div className="mb-8" ref={resultadosRef}>
             <BuscadorRutas
               onSelectRuta={(ruta, { auto } = {}) =>
                 cargarRutaConParadas(ruta, { scroll: !auto })
@@ -100,39 +107,50 @@ export default function Home() {
             )}
             {!loading && rutaDestacada && (
               <>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Mostrando ruta: {rutaDestacada.nombre}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={volverAResultados}
+                      className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <ArrowUp size={13} />
+                      Volver a resultados
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/rutas/${rutaDestacada.id}`)}
+                      className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:opacity-90"
+                    >
+                      <Ticket size={13} />
+                      Ver detalles y comprar
+                    </button>
+                  </div>
+                </div>
+
                 <MapaRutas
                   key={rutaDestacada.id}
                   coordenadasRecorrido={
-                    coordenadas.length
-                      ? coordenadas
-                      : (rutaDestacada.trazado ?? [])
+                    coordenadas.length ? coordenadas : (rutaDestacada.trazado ?? [])
                   }
                   paradas={rutaDestacada.paradas ?? []}
                   onSelectParada={setParadaSeleccionada}
                   ubicacionUsuario={ubicacionUsuario}
                 />
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Mostrando:{" "}
-                  <span className="font-medium text-foreground">
-                    {rutaDestacada.nombre}
-                  </span>
+                  {rutaDestacada.canton_origen} → {rutaDestacada.canton_destino}
                   {paradaSeleccionada && (
-                    <>
-                      {" "}
-                      · parada seleccionada:{" "}
-                      <span className="font-medium text-foreground">
-                        {paradaSeleccionada.nombre}
-                      </span>
-                    </>
+                    <> · parada seleccionada: <span className="font-medium text-foreground">{paradaSeleccionada.nombre}</span></>
                   )}
                 </p>
               </>
             )}
             {!loading && !rutaDestacada && (
               <div className="flex h-[400px] items-center justify-center rounded-lg border border-border">
-                <p className="text-muted-foreground">
-                  No hay rutas disponibles aún.
-                </p>
+                <p className="text-muted-foreground">No hay rutas disponibles aún.</p>
               </div>
             )}
           </div>
