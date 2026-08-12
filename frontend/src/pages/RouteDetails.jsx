@@ -4,6 +4,8 @@ import { Users, ShoppingCart } from "lucide-react";
 import Navbar from "../components/layout/NavBar";
 import MapaRutas from "../components/routes/RouteMap";
 import ListaParadas from "../components/routes/StopList";
+import SelectorFecha, { hoyISO } from "../components/routes/DatePicker";
+import SelectorHorario from "../components/routes/ScheduleSelector";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import SelectField from "../components/ui/SelectField";
@@ -39,6 +41,7 @@ export default function DetalleRuta() {
   const [loading, setLoading] = useState(true);
 
   const [paradaId, setParadaId] = useState("");
+  const [fecha, setFecha] = useState(hoyISO());
   const [horario, setHorario] = useState("");
   const [cantidad, setCantidad] = useState(1);
 
@@ -66,14 +69,29 @@ export default function DetalleRuta() {
     [ruta],
   );
 
+  const horariosDisponibles = useMemo(() => {
+    if (fecha !== hoyISO()) return horarios;
+    const ahora = new Date();
+    const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+    return horarios.filter((h) => {
+      const [hh, mm] = h.split(":").map(Number);
+      return hh * 60 + mm >= minutosAhora;
+    });
+  }, [horarios, fecha]);
+
   useEffect(() => {
-    if (horarios.length && !horario) setHorario(horarios[0]);
-  }, [horarios, horario]);
+    if (horariosDisponibles.length && !horariosDisponibles.includes(horario)) {
+      setHorario(horariosDisponibles[0]);
+    }
+    if (!horariosDisponibles.length) {
+      setHorario("");
+    }
+  }, [horariosDisponibles, horario]);
 
   const total = ruta ? ruta.tarifa * cantidad : 0;
 
   function handleAgregar() {
-    if (!ruta || !paradaId || !horario) return;
+    if (!ruta || !paradaId || !horario || !fecha) return;
     const parada = paradas.find((p) => p.id === paradaId);
     const agregado = addToCart({
       rutaId: ruta.id,
@@ -83,6 +101,7 @@ export default function DetalleRuta() {
       paradaId: parada.id,
       paradaNombre: parada.nombre,
       horario,
+      fecha,
       cantidad,
     });
     if (agregado) navigate("/carrito");
@@ -123,7 +142,8 @@ export default function DetalleRuta() {
     <div className={darkMode ? "dark" : ""}>
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-7xl overflow-x-hidden px-4 py-8 pb-28 sm:px-6 lg:px-8 lg:pb-8">
+          {" "}
           <div className="mb-6">
             <h1 className="mb-1 text-2xl font-bold tracking-tight sm:text-3xl">
               {ruta.codigo} - {ruta.nombre}
@@ -133,7 +153,6 @@ export default function DetalleRuta() {
               {ruta.tarifa.toLocaleString()} por persona
             </p>
           </div>
-
           <div className="mb-6">
             <MapaRutas
               coordenadasRecorrido={
@@ -143,19 +162,22 @@ export default function DetalleRuta() {
               onSelectParada={(p) => p.tipo !== "destino" && setParadaId(p.id)}
             />
           </div>
-
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+            <Card className="min-w-0">
               <h2 className="mb-4 text-lg font-semibold">Paradas</h2>
               <ListaParadas paradas={paradas} />
             </Card>
 
-            <Card>
+            <Card className="min-w-0">
               <h2 className="mb-6 text-lg font-semibold text-foreground">
                 Comprar boleto
               </h2>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="mb-4">
+                <SelectorFecha value={fecha} onChange={setFecha} />
+              </div>
+
+              <div className="mb-4">
                 <SelectField
                   label="Tu parada (o haz click en el mapa)"
                   value={paradas.find((p) => p.id === paradaId)?.nombre ?? ""}
@@ -167,12 +189,21 @@ export default function DetalleRuta() {
                   }}
                   options={abordables.map((p) => p.nombre)}
                 />
-                <SelectField
-                  label="Horario de salida"
+              </div>
+
+              <div className="mb-4">
+                <SelectorHorario
                   value={horario}
                   onChange={setHorario}
-                  options={horarios}
+                  horarios={horariosDisponibles}
                 />
+                {fecha === hoyISO() &&
+                  horarios.length > 0 &&
+                  !horariosDisponibles.length && (
+                    <p className="mt-2 text-xs text-red-500">
+                      Ya no hay salidas disponibles hoy. Elige otro día.
+                    </p>
+                  )}
               </div>
 
               <div className="mt-4">
@@ -210,7 +241,7 @@ export default function DetalleRuta() {
                 </div>
                 <Button
                   onClick={handleAgregar}
-                  disabled={!paradaId || !horario}
+                  disabled={!paradaId || !horario || !fecha}
                 >
                   <ShoppingCart size={16} />
                   Agregar al carrito

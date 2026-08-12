@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trash2, MapPin, Clock, Users } from "lucide-react";
+import { Trash2, MapPin, Clock, Users, Calendar } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import Navbar from "../components/layout/NavBar";
@@ -35,6 +35,7 @@ export default function Cart() {
         ruta_nombre: item.rutaNombre,
         parada_nombre: item.paradaNombre,
         horario: item.horario,
+        fecha: item.fecha,
         cantidad: item.cantidad,
       });
       setClientSecret(data.client_secret);
@@ -112,6 +113,10 @@ export default function Cart() {
                 <div className="flex items-center gap-2">
                   <MapPin size={16} />
                   <span>Abordaje: {item.paradaNombre}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} />
+                  <span>Fecha: {item.fecha}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock size={16} />

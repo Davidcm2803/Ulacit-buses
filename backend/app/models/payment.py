@@ -3,11 +3,12 @@ from typing import Optional
 
 
 class PaymentIntentCreate(BaseModel):
-    monto: float          
+    monto: float
     ruta_id: str
     ruta_nombre: str
     parada_nombre: str
     horario: str
+    fecha: str
     cantidad: int
 
 

@@ -14,6 +14,7 @@ class TicketOut(BaseModel):
     ruta_nombre: str
     parada_nombre: str
     horario: str
+    fecha: Optional[str] = None
     salida_at: Optional[datetime] = None
     estado_viaje: str = "sin_datos"
     cantidad: int

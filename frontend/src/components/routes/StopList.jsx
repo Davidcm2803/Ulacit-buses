@@ -6,7 +6,7 @@ export default function ListaParadas({ paradas = [] }) {
           <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
             {index + 1}
           </span>
-          <span>{parada.nombre}</span>
+          <span className="min-w-0 flex-1 break-words">{parada.nombre}</span>
         </li>
       ))}
     </ul>

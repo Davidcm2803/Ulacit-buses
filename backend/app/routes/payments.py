@@ -21,6 +21,7 @@ def create_intent(
             ruta_nombre=body.ruta_nombre,
             parada_nombre=body.parada_nombre,
             horario=body.horario,
+            fecha=body.fecha,
             cantidad=body.cantidad,
         )
     except Exception as e:
@@ -48,7 +49,7 @@ def confirm_payment(
         raise HTTPException(400, f"El pago no se ha completado (status: {intent.status})")
 
     usuario_id = current_user.get("firebase_uid")
-
+    
     # Guardar el historial de compra. Si esto falla, el pago ya se hizo
     # en Stripe de todas formas, asi que no tumbamos la respuesta al usuario;
     # solo lo registramos para revisarlo despues.

@@ -3,13 +3,22 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from pymongo.database import Database
 
-from app.services.payment_service import calcular_salida_at
+from app.services.payment_service import calcular_salida_at, CR_TZ
 
 
 def _asegurar_utc(dt: datetime | None) -> datetime | None:
     if dt and dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def _proxima_ocurrencia_legacy(horario: str, desde: datetime) -> datetime:
+    desde_cr = desde.astimezone(CR_TZ)
+    h, m = map(int, horario.split(":"))
+    salida_cr = desde_cr.replace(hour=h, minute=m, second=0, microsecond=0)
+    if salida_cr < desde_cr:
+        salida_cr += timedelta(days=1)
+    return salida_cr.astimezone(timezone.utc)
 
 
 def _calcular_estado_viaje(salida_at: datetime | None, tiempo_min: int | None,
@@ -41,9 +50,11 @@ def _serializar(t: dict) -> dict:
         t["createdAt"] = _asegurar_utc(t["createdAt"])
 
     salida_at = t.get("salida_at")
-    if not salida_at and t.get("horario") and t.get("createdAt"):
-        # Compatibilidad con tickets viejos que no tenian salida_at guardado
-        salida_at = calcular_salida_at(t["horario"], t["createdAt"])
+    if not salida_at:
+        if t.get("fecha") and t.get("horario"):
+            salida_at = calcular_salida_at(t["fecha"], t["horario"])
+        elif t.get("horario") and t.get("createdAt"):
+            salida_at = _proxima_ocurrencia_legacy(t["horario"], t["createdAt"])
 
     t["salida_at"] = _asegurar_utc(salida_at)
     return t
