@@ -1,0 +1,3 @@
+firebase-service-account.json
+.lambda_build/
+lambda_package.zip
