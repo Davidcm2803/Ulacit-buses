@@ -13,6 +13,7 @@ export default function Home() {
   const { darkMode, toggleDarkMode } = useDarkMode();
   const navigate = useNavigate();
   const [rutaDestacada, setRutaDestacada] = useState(null);
+  const [seleccionConfirmada, setSeleccionConfirmada] = useState(false);
   const [paradaSeleccionada, setParadaSeleccionada] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rutasCercanas, setRutasCercanas] = useState([]);
@@ -20,11 +21,12 @@ export default function Home() {
   const mapaRef = useRef(null);
   const resultadosRef = useRef(null);
 
-  async function cargarRutaConParadas(ruta, { scroll = false } = {}) {
+  async function cargarRutaConParadas(ruta, { scroll = false, manual = false } = {}) {
     try {
       const paradas = ruta.paradas ?? (await routesService.getStops(ruta.id));
       setRutaDestacada({ ...ruta, paradas });
       setParadaSeleccionada(null);
+      if (manual) setSeleccionConfirmada(true);
       if (scroll) {
         mapaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
@@ -35,6 +37,15 @@ export default function Home() {
 
   function volverAResultados() {
     resultadosRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleVerDetalles() {
+    if (!seleccionConfirmada || !rutaDestacada) {
+      alert("No hay ruta seleccionada. Elegí arriba a dónde querés ir.");
+      volverAResultados();
+      return;
+    }
+    navigate(`/rutas/${rutaDestacada.id}`);
   }
 
   useEffect(() => {
@@ -76,7 +87,7 @@ export default function Home() {
                 {rutasCercanas.map((r) => (
                   <button
                     key={r.id}
-                    onClick={() => cargarRutaConParadas(r, { scroll: true })}
+                    onClick={() => cargarRutaConParadas(r, { scroll: true, manual: true })}
                     className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
                       rutaDestacada?.id === r.id
                         ? "border-primary bg-primary text-primary-foreground"
@@ -93,7 +104,7 @@ export default function Home() {
           <div className="mb-8" ref={resultadosRef}>
             <BuscadorRutas
               onSelectRuta={(ruta, { auto } = {}) =>
-                cargarRutaConParadas(ruta, { scroll: !auto })
+                cargarRutaConParadas(ruta, { scroll: !auto, manual: true })
               }
               rutaSeleccionadaId={rutaDestacada?.id}
             />
@@ -110,6 +121,11 @@ export default function Home() {
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-lg font-semibold text-foreground">
                     Mostrando ruta: {rutaDestacada.nombre}
+                    {!seleccionConfirmada && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        (sugerida, aún no elegida)
+                      </span>
+                    )}
                   </h2>
                   <div className="flex items-center gap-2">
                     <button
@@ -122,7 +138,7 @@ export default function Home() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate(`/rutas/${rutaDestacada.id}`)}
+                      onClick={handleVerDetalles}
                       className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:opacity-90"
                     >
                       <Ticket size={13} />

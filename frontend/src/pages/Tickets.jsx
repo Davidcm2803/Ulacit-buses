@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bus, MapPin, Clock, Users, Ticket as TicketIcon, CheckCircle2 } from "lucide-react";
+import {
+  Bus,
+  MapPin,
+  Clock,
+  Users,
+  Ticket as TicketIcon,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import Navbar from "../components/layout/NavBar";
 import Card from "../components/ui/Card";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { ticketsService } from "../config/api";
 import { labelEstadoViaje, esViajeFinalizado } from "../lib/ticketTracking";
+import { cn } from "../lib/utils";
 
 function EstadoBadge({ estado }) {
   const map = {
@@ -86,11 +96,34 @@ function TarjetaTicket({ ticket }) {
   );
 }
 
+function claveDia(ticket) {
+  const fecha = ticket.salida_at || ticket.fecha || ticket.createdAt;
+  if (!fecha) return "sin-fecha";
+  return new Date(fecha).toLocaleDateString("en-CA", {
+    timeZone: "America/Costa_Rica",
+  });
+}
+
+function labelDia(clave) {
+  if (clave === "sin-fecha") return "Fecha desconocida";
+  const [y, m, d] = clave.split("-").map(Number);
+  const fecha = new Date(y, m - 1, d);
+  const label = fecha.toLocaleDateString("es-CR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 export default function Tickets() {
   const { darkMode, toggleDarkMode } = useDarkMode();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState("activos");
+  const [diasAbiertos, setDiasAbiertos] = useState(() => new Set());
 
   useEffect(() => {
     ticketsService
@@ -109,6 +142,27 @@ export default function Tickets() {
     }
     return { activos, finalizados };
   }, [tickets]);
+
+  const gruposFinalizados = useMemo(() => {
+    const map = new Map();
+    for (const t of finalizados) {
+      const clave = claveDia(t);
+      if (!map.has(clave)) map.set(clave, []);
+      map.get(clave).push(t);
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+      .map(([clave, tickets]) => ({ clave, label: labelDia(clave), tickets }));
+  }, [finalizados]);
+
+  function toggleDia(clave) {
+    setDiasAbiertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(clave)) next.delete(clave);
+      else next.add(clave);
+      return next;
+    });
+  }
 
   return (
     <div className={darkMode ? "dark" : ""}>
@@ -142,13 +196,36 @@ export default function Tickets() {
           )}
 
           {!loading && !error && tickets.length > 0 && (
-            <div className="flex flex-col gap-8">
-              <section>
-                <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <>
+              <div className="mb-6 flex border-b border-border">
+                <button
+                  onClick={() => setTab("activos")}
+                  className={cn(
+                    "flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+                    tab === "activos"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
                   <Bus size={14} />
-                  Viajes activos ({activos.length})
-                </h2>
-                {activos.length === 0 ? (
+                  Activos ({activos.length})
+                </button>
+                <button
+                  onClick={() => setTab("finalizados")}
+                  className={cn(
+                    "flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+                    tab === "finalizados"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <CheckCircle2 size={14} />
+                  Finalizados ({finalizados.length})
+                </button>
+              </div>
+
+              {tab === "activos" && (
+                activos.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No tenés viajes activos.</p>
                 ) : (
                   <div className="flex flex-col gap-4">
@@ -156,23 +233,49 @@ export default function Tickets() {
                       <TarjetaTicket key={t.id} ticket={t} />
                     ))}
                   </div>
-                )}
-              </section>
-
-              {finalizados.length > 0 && (
-                <section>
-                  <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                    <CheckCircle2 size={14} />
-                    Viajes finalizados ({finalizados.length})
-                  </h2>
-                  <div className="flex flex-col gap-4">
-                    {finalizados.map((t) => (
-                      <TarjetaTicket key={t.id} ticket={t} />
-                    ))}
-                  </div>
-                </section>
+                )
               )}
-            </div>
+
+              {tab === "finalizados" && (
+                gruposFinalizados.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No tenés viajes finalizados.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {gruposFinalizados.map((grupo) => {
+                      const abierto = diasAbiertos.has(grupo.clave);
+                      return (
+                        <div
+                          key={grupo.clave}
+                          className="overflow-hidden rounded-lg border border-border"
+                        >
+                          <button
+                            onClick={() => toggleDia(grupo.clave)}
+                            className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                          >
+                            <span className="text-sm font-medium text-foreground">
+                              {grupo.label}
+                            </span>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <span className="text-xs">
+                                {grupo.tickets.length} viaje{grupo.tickets.length !== 1 && "s"}
+                              </span>
+                              {abierto ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </div>
+                          </button>
+                          {abierto && (
+                            <div className="flex flex-col gap-3 border-t border-border bg-muted/20 p-3">
+                              {grupo.tickets.map((t) => (
+                                <TarjetaTicket key={t.id} ticket={t} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              )}
+            </>
           )}
         </main>
       </div>

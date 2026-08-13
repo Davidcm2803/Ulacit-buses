@@ -46,6 +46,26 @@ function interpolarSobreTrazado(trazado, fraccion) {
   return trazado[trazado.length - 1];
 }
 
+function formatSalidaCompleta(fecha) {
+  const hora = fecha
+    .toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "America/Costa_Rica",
+    })
+    .toUpperCase();
+
+  const dia = fecha.toLocaleDateString("es-CR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "America/Costa_Rica",
+  });
+
+  return `El bus sale a las ${hora} el ${dia}`;
+}
+
 export default function useBusTracking(ticket) {
   const [ahora, setAhora] = useState(() => new Date());
 
@@ -68,7 +88,7 @@ export default function useBusTracking(ticket) {
   if (ahora < salida) {
     return {
       estado: "por_salir",
-      mensaje: `El bus sale a las ${ticket.horario}`,
+      mensaje: formatSalidaCompleta(salida),
       posicion: trazado[0] ?? null,
       progreso: 0,
       salida,

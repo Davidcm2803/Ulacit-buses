@@ -62,7 +62,33 @@ function MapInvalidator() {
   return null;
 }
 
-// Crea una capa de GeoJSON 
+function FitBounds({ puntos, trazado }) {
+  const map = useMap();
+  const yaAjustado = useRef(false);
+
+  useEffect(() => {
+    if (yaAjustado.current) return;
+
+    const coords = trazado.length
+      ? trazado.map((c) => [c.lat, c.lng])
+      : puntos.map((p) => [p.lat, p.lng]);
+
+    if (coords.length === 0) return;
+
+    const t = setTimeout(() => {
+      yaAjustado.current = true;
+      if (coords.length === 1) {
+        map.setView(coords[0], 15);
+      } else {
+        map.fitBounds(coords, { padding: [40, 40] });
+      }
+    }, 150);
+
+    return () => clearTimeout(t);
+  }, [puntos, trazado, map]);
+
+  return null;
+}
 
 function CantonOverlay({ feature }) {
   const map = useMap();
@@ -105,7 +131,6 @@ export default function AdminMapPicker({
   const [cantonPoligono, setCantonPoligono] = useState(null);
 
   const origen = puntos.find((p) => p.tipo === "origen");
-  // Prioriza el canton escogido o donde esta el punto, si esta fuera del canton el punto de origen da error
   const cantonAMostrar = cantonOrigen || origen?.canton || null;
 
   useEffect(() => {
@@ -137,6 +162,7 @@ export default function AdminMapPicker({
         style={{ height: "100%", width: "100%" }}
       >
         <MapInvalidator />
+        <FitBounds puntos={puntos} trazado={trazado} />
         <ClickHandler onMapClick={onMapClick} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

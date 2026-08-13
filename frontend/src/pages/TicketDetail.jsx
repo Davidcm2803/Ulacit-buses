@@ -15,6 +15,7 @@ const ESTADO_STYLES = {
   sin_datos: "bg-muted text-muted-foreground",
 };
 
+
 export default function TicketDetail() {
   const { id } = useParams();
   const { darkMode, toggleDarkMode } = useDarkMode();
@@ -85,8 +86,6 @@ export default function TicketDetail() {
                     <span>{ticket.parada_nombre}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock size={14} />
-                    <span>Salida: {ticket.horario}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Users size={14} />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
+import * as Select from "@radix-ui/react-select";
+import { MapPin, ChevronDown, Check } from "lucide-react";
 import { cargarCantonesCR } from "../../lib/cantonesCR";
 
 export default function LocationSelect({ label, value, onChange }) {
@@ -19,13 +20,12 @@ export default function LocationSelect({ label, value, onChange }) {
 
   const cantones = datos.find((g) => g.provincia === provincia)?.cantones ?? [];
 
-  function handleProvincia(e) {
-    // al cambiar provincia se resetea el cantón, porque ya no aplica
-    onChange?.({ provincia: e.target.value, canton: "" });
+  function handleProvincia(v) {
+    onChange?.({ provincia: v, canton: "" });
   }
 
-  function handleCanton(e) {
-    onChange?.({ provincia, canton: e.target.value });
+  function handleCanton(v) {
+    onChange?.({ provincia, canton: v === "__todos__" ? "" : v });
   }
 
   return (
@@ -35,40 +35,90 @@ export default function LocationSelect({ label, value, onChange }) {
           {label}
         </label>
       )}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="relative">
-          <MapPin
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <select
-            value={provincia}
-            onChange={handleProvincia}
-            disabled={loading}
-            className="h-10 w-full appearance-none rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary disabled:opacity-50"
-          >
-            <option value="">{loading ? "Cargando..." : "Provincia"}</option>
-            {datos.map((g) => (
-              <option key={g.provincia} value={g.provincia}>
-                {g.provincia}
-              </option>
-            ))}
-          </select>
-        </div>
 
-        <select
-          value={canton}
-          onChange={handleCanton}
+      <div className="flex h-11 items-stretch overflow-hidden rounded-md border border-border bg-background transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
+        <Select.Root value={provincia} onValueChange={handleProvincia} disabled={loading}>
+          <Select.Trigger
+            aria-label="Provincia"
+            className="flex flex-1 items-center gap-2 pl-3 pr-2 text-sm text-foreground outline-none data-[placeholder]:text-muted-foreground hover:enabled:bg-muted disabled:opacity-50"
+          >
+            <MapPin size={15} className="shrink-0 text-muted-foreground" />
+            <Select.Value placeholder={loading ? "Cargando..." : "Provincia"} />
+            <Select.Icon className="ml-auto">
+              <ChevronDown size={14} className="text-muted-foreground" />
+            </Select.Icon>
+          </Select.Trigger>
+
+          <Select.Portal>
+            <Select.Content
+              position="popper"
+              sideOffset={6}
+              className="z-50 w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-border bg-background shadow-lg"
+            >
+              <Select.Viewport className="max-h-64 p-1">
+                {datos.map((g) => (
+                  <Select.Item
+                    key={g.provincia}
+                    value={g.provincia}
+                    className="flex cursor-pointer select-none items-center justify-between rounded-sm px-2.5 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-muted"
+                  >
+                    <Select.ItemText>{g.provincia}</Select.ItemText>
+                    <Select.ItemIndicator>
+                      <Check size={14} className="text-primary" />
+                    </Select.ItemIndicator>
+                  </Select.Item>
+                ))}
+              </Select.Viewport>
+            </Select.Content>
+          </Select.Portal>
+        </Select.Root>
+
+        <div className="w-px shrink-0 bg-border" />
+
+        <Select.Root
+          value={canton || "__todos__"}
+          onValueChange={handleCanton}
           disabled={!provincia}
-          className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary disabled:opacity-50"
         >
-          <option value="">Cantón (todos)</option>
-          {cantones.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          <Select.Trigger
+            aria-label="Cantón"
+            className="flex flex-1 items-center gap-2 pl-3 pr-2 text-sm outline-none hover:enabled:bg-muted disabled:opacity-40"
+          >
+            <Select.Value />
+            <Select.Icon className="ml-auto">
+              <ChevronDown size={14} className="text-muted-foreground" />
+            </Select.Icon>
+          </Select.Trigger>
+
+          <Select.Portal>
+            <Select.Content
+              position="popper"
+              sideOffset={6}
+              className="z-50 w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-border bg-background shadow-lg"
+            >
+              <Select.Viewport className="max-h-64 p-1">
+                <Select.Item
+                  value="__todos__"
+                  className="flex cursor-pointer select-none items-center justify-between rounded-sm px-2.5 py-2 text-sm text-muted-foreground outline-none data-[highlighted]:bg-muted"
+                >
+                  <Select.ItemText>Cantón (todos)</Select.ItemText>
+                </Select.Item>
+                {cantones.map((c) => (
+                  <Select.Item
+                    key={c}
+                    value={c}
+                    className="flex cursor-pointer select-none items-center justify-between rounded-sm px-2.5 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-muted"
+                  >
+                    <Select.ItemText>{c}</Select.ItemText>
+                    <Select.ItemIndicator>
+                      <Check size={14} className="text-primary" />
+                    </Select.ItemIndicator>
+                  </Select.Item>
+                ))}
+              </Select.Viewport>
+            </Select.Content>
+          </Select.Portal>
+        </Select.Root>
       </div>
 
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}

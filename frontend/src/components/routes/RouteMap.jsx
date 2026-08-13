@@ -78,15 +78,19 @@ function MapaAutoFit({ puntos, rutaKey, banderaAutoMovimiento }) {
     if (usuarioInteractuo.current) return;
 
     banderaAutoMovimiento.current = true;
-    if (puntos.length === 1) {
-      map.setView(puntos[0], 14);
-    } else {
-      const bounds = L.latLngBounds(puntos);
-      map.fitBounds(bounds, { padding: [40, 40] });
-    }
-    setTimeout(() => {
-      banderaAutoMovimiento.current = false;
-    }, 0);
+    map.invalidateSize();
+
+    requestAnimationFrame(() => {
+      if (puntos.length === 1) {
+        map.setView(puntos[0], 14);
+      } else {
+        const bounds = L.latLngBounds(puntos);
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+      setTimeout(() => {
+        banderaAutoMovimiento.current = false;
+      }, 0);
+    });
 
     ultimaRutaEncuadrada.current = rutaKey;
   }, [map, puntos, rutaKey, banderaAutoMovimiento]);
@@ -94,9 +98,12 @@ function MapaAutoFit({ puntos, rutaKey, banderaAutoMovimiento }) {
   return null;
 }
 
-// Centra el mapa en el bus mientras el seguimiento está activo, y avisa
-// (onInterrupcionManual) si el usuario arrastra el mapa para apagarlo.
-function SeguidorBus({ busPosicion, siguiendo, onInterrupcionManual, banderaAutoMovimiento }) {
+function SeguidorBus({
+  busPosicion,
+  siguiendo,
+  onInterrupcionManual,
+  banderaAutoMovimiento,
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -160,8 +167,6 @@ export default function MapaRutas({
   mostrarSeguimiento = false,
 }) {
   const [siguiendoBus, setSiguiendoBus] = useState(false);
-  // Compartida entre MapaAutoFit y SeguidorBus: distingue un movimiento
-  // programático (nuestro) de un drag/zoom real del usuario.
   const banderaAutoMovimiento = useRef(false);
 
   const polylinePositions = coordenadasRecorrido.map((c) => [c.lat, c.lng]);
@@ -172,8 +177,8 @@ export default function MapaRutas({
       : paradas.map((p) => [p.lat, p.lng]);
 
   const rutaKey =
-    paradas.map((p) => p.id ?? `${p.lat},${p.lng}`).join("|") ||
-    polylinePositions.length;
+    (paradas.map((p) => p.id ?? `${p.lat},${p.lng}`).join("|") ||
+      "sin-paradas") + `::${puntosParaEncuadrar.length}`;
 
   const handleToggleSeguir = useCallback(() => {
     setSiguiendoBus((prev) => !prev);
@@ -189,7 +194,13 @@ export default function MapaRutas({
 
   return (
     <div className="relative h-[400px] w-full max-w-full overflow-hidden rounded-lg border border-border shadow-sm sm:h-[500px] [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full [&_.leaflet-container]:z-0">
-      <MapContainer center={CR_CENTER} zoom={CR_ZOOM} scrollWheelZoom zoomSnap={0.3} zoomDelta={0.3}>
+      <MapContainer
+        center={CR_CENTER}
+        zoom={CR_ZOOM}
+        scrollWheelZoom
+        zoomSnap={0.3}
+        zoomDelta={0.3}
+      >
         <MapInvalidator />
         <MapaAutoFit
           puntos={puntosParaEncuadrar}
@@ -231,7 +242,9 @@ export default function MapaRutas({
             <Popup>
               <div className="text-sm">
                 <p className="font-semibold">{parada.nombre}</p>
-                <p className="text-xs capitalize text-muted-foreground">{parada.tipo}</p>
+                <p className="text-xs capitalize text-muted-foreground">
+                  {parada.tipo}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {parada.canton}, {parada.provincia}
                 </p>

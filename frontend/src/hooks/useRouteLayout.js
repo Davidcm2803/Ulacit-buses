@@ -4,13 +4,6 @@ const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY;
 const ORS_DIRECTIONS_URL =
   "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
 
-/**
- * Recibe un array de paradas con { lat, lng } y devuelve el trazado real
- * por calles usando OpenRouteService.
- *
- * @param {Array<{ lat: number, lng: number, nombre?: string }>} paradas
- * @returns {{ coordenadas: Array<{lat:number,lng:number}>, loading: boolean, error: string|null }}
- */
 export default function useTrazadoRuta(paradas = []) {
   const [coordenadas, setCoordenadas] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -24,8 +17,9 @@ export default function useTrazadoRuta(paradas = []) {
 
     const lineaRecta = paradas.map((p) => ({ lat: p.lat, lng: p.lng }));
 
+    setCoordenadas(lineaRecta);
+
     if (!ORS_API_KEY) {
-      setCoordenadas(lineaRecta);
       setError("ORS_API_KEY no configurada");
       return;
     }

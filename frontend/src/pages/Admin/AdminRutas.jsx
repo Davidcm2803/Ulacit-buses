@@ -55,7 +55,7 @@ export default function AdminRutas() {
 
   function handleProvinciaChange(e) {
     setProvinciaFiltro(e.target.value);
-    setCantonFiltro(""); // resetea canton al cambiar provincia
+    setCantonFiltro("");
   }
 
   async function handleBorrar(id, nombre) {

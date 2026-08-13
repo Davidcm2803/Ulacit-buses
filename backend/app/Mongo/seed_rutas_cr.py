@@ -79,38 +79,66 @@ CANTONES_CR = {
 
 TIPO_LABEL = {"origen": "Origen", "parada": "Parada", "destino": "Destino"}
 
-# (provincia_origen, canton_origen, provincia_destino, canton_destino)
+
 RUTAS_INTRA_PROVINCIA = [
+    # Heredia
+    ("Heredia", "San Isidro", "Heredia", "Santo Domingo"),
+    ("Heredia", "San Rafael", "Heredia", "Heredia"),
+    # San Jose
     ("San Jose", "San Jose", "San Jose", "Escazu"),
     ("San Jose", "San Jose", "San Jose", "Desamparados"),
     ("San Jose", "San Jose", "San Jose", "Curridabat"),
-    ("San Jose", "San Jose", "San Jose", "Goicoechea"),
+    # Alajuela
     ("Alajuela", "Alajuela", "Alajuela", "Grecia"),
     ("Alajuela", "Alajuela", "Alajuela", "Naranjo"),
+    ("Alajuela", "Alajuela", "Alajuela", "San Ramon"),
+    # Cartago
     ("Cartago", "Cartago", "Cartago", "Paraiso"),
     ("Cartago", "Cartago", "Cartago", "La Union"),
-    ("Heredia", "Heredia", "Heredia", "Santo Domingo"),
-    ("Heredia", "Heredia", "Heredia", "San Rafael"),
+    ("Cartago", "Cartago", "Cartago", "Oreamuno"),
+    # Guanacaste
     ("Guanacaste", "Liberia", "Guanacaste", "Santa Cruz"),
+    ("Guanacaste", "Liberia", "Guanacaste", "Canas"),
+    ("Guanacaste", "Liberia", "Guanacaste", "Nicoya"),
+    # Puntarenas
     ("Puntarenas", "Puntarenas", "Puntarenas", "Esparza"),
+    ("Puntarenas", "Puntarenas", "Puntarenas", "Aguirre"),
+    ("Puntarenas", "Puntarenas", "Puntarenas", "Golfito"),
+    # Limon
+    ("Limon", "Limon", "Limon", "Pococi"),
     ("Limon", "Limon", "Limon", "Siquirres"),
+    ("Limon", "Limon", "Limon", "Guacimo"),
 ]
 
 RUTAS_INTER_PROVINCIA = [
+    # Heredia
+    ("Heredia", "Heredia", "San Jose", "San Jose"),
+    ("Heredia", "Heredia", "Alajuela", "Alajuela"),
+    ("Heredia", "Heredia", "Cartago", "Cartago"),
+    # San Jose
     ("San Jose", "San Jose", "Heredia", "Heredia"),
     ("San Jose", "San Jose", "Alajuela", "Alajuela"),
     ("San Jose", "San Jose", "Cartago", "Cartago"),
-    ("Heredia", "Heredia", "Alajuela", "Alajuela"),
-    ("Heredia", "Heredia", "Cartago", "Cartago"),
+    # Alajuela
+    ("Alajuela", "Alajuela", "San Jose", "San Jose"),
+    ("Alajuela", "Alajuela", "Heredia", "Heredia"),
     ("Alajuela", "Alajuela", "Cartago", "Cartago"),
-    ("San Jose", "San Jose", "Guanacaste", "Liberia"),
-    ("San Jose", "San Jose", "Puntarenas", "Puntarenas"),
-    ("San Jose", "San Jose", "Limon", "Limon"),
-    ("Alajuela", "Alajuela", "Puntarenas", "Puntarenas"),
-    ("Cartago", "Cartago", "Limon", "Limon"),
-    ("Heredia", "Heredia", "Alajuela", "San Ramon"),
-    ("San Jose", "Desamparados", "Cartago", "Cartago"),
-    ("San Jose", "San Jose", "Alajuela", "San Ramon"),
+    # Cartago
+    ("Cartago", "Cartago", "San Jose", "San Jose"),
+    ("Cartago", "Cartago", "Heredia", "Heredia"),
+    ("Cartago", "Cartago", "Alajuela", "Alajuela"),
+    # Guanacaste
+    ("Guanacaste", "Liberia", "Puntarenas", "Puntarenas"),
+    ("Guanacaste", "Liberia", "San Jose", "San Jose"),
+    ("Guanacaste", "Liberia", "Alajuela", "Alajuela"),
+    # Puntarenas
+    ("Puntarenas", "Puntarenas", "San Jose", "San Jose"),
+    ("Puntarenas", "Puntarenas", "Guanacaste", "Liberia"),
+    ("Puntarenas", "Puntarenas", "Alajuela", "Alajuela"),
+    # Limon
+    ("Limon", "Limon", "San Jose", "San Jose"),
+    ("Limon", "Limon", "Cartago", "Cartago"),
+    ("Limon", "Limon", "Heredia", "Heredia"),
 ]
 
 
@@ -146,11 +174,14 @@ def trazado_por_calles(coord_origen, coord_destino):
         res = requests.post(
             ORS_URL,
             headers={"Authorization": ORS_API_KEY, "Content-Type": "application/json"},
-            json={"coordinates": [
-                [coord_origen[1], coord_origen[0]],
-                [coord_destino[1], coord_destino[0]],
-            ]},
-            timeout=15,
+            json={
+                "coordinates": [
+                    [coord_origen[1], coord_origen[0]],
+                    [coord_destino[1], coord_destino[0]],
+                ],
+                "radiuses": [-1, -1],
+            },
+            timeout=20,
         )
         if not res.ok:
             print(f"  ORS respondio {res.status_code}, uso linea recta")
@@ -272,6 +303,21 @@ def construir_paradas(ruta, route_id):
     return paradas
 
 
+def limpiar_rutas_existentes():
+    a_borrar = list(db.rutas.find({"_id": {"$ne": RUTA_A_CONSERVAR_ID}}, {"_id": 1}))
+    ids_a_borrar = [r["_id"] for r in a_borrar]
+
+    if not ids_a_borrar:
+        print("No habia otras rutas que borrar.")
+        return
+
+    route_ids_str = [str(i) for i in ids_a_borrar]
+    paradas_borradas = db.paradas.delete_many({"route_id": {"$in": route_ids_str}})
+    rutas_borradas = db.rutas.delete_many({"_id": {"$in": ids_a_borrar}})
+
+    print(f"Borradas {rutas_borradas.deleted_count} rutas y {paradas_borradas.deleted_count} paradas ")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--yes", action="store_true")
@@ -280,14 +326,22 @@ def main():
     if not ORS_API_KEY:
         print("Aviso: no hay ORS_API_KEY configurada, todas las rutas se generaran en linea recta.")
 
+    conservar_doc = db.rutas.find_one({"_id": RUTA_A_CONSERVAR_ID})
+    if not conservar_doc:
+        print("no rutas en la BD.")
+
     rutas = construir_rutas()
-    print(f"Se generaron {len(rutas)} rutas. Conectando a: {DB_NAME}")
+    print(f"Se generaron {len(rutas)} rutas nuevas. Conectando a: {DB_NAME}")
 
     if not args.yes:
-        resp = input(f"Insertar en la base '{DB_NAME}'? [y/N] ")
+        resp = input(
+            f"insertar {len(rutas)} rutas nuevas en '{DB_NAME}'. Continuar? [y/N] "
+        )
         if resp.strip().lower() != "y":
             print("Cancelado.")
             return
+
+    limpiar_rutas_existentes()
 
     insertadas = 0
     for ruta in rutas:
@@ -298,7 +352,7 @@ def main():
             db.paradas.insert_many(paradas)
         insertadas += 1
 
-    print(f"Listo. Insertadas: {insertadas}.")
+    print(f" Insertadas: {insertadas}. Total en BD ahora: {insertadas + 1} ")
 
 
 if __name__ == "__main__":
