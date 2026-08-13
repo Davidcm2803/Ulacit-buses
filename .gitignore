@@ -1,0 +1,12 @@
+
+# Frontend
+frontend/.env
+frontend/.env.local
+
+# Backend
+backend/.env
+backend/.env
+
+
+__pycache__/
+*.pyc
