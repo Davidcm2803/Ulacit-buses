@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bus,
@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
+  Calendar,
 } from "lucide-react";
 import Navbar from "../components/layout/NavBar";
 import Card from "../components/ui/Card";
@@ -72,6 +74,12 @@ function TarjetaTicket({ ticket }) {
             <Clock size={14} />
             <span>Horario: {ticket.horario}</span>
           </div>
+          {formatFechaSalida(ticket) && (
+            <div className="flex items-center gap-2">
+              <Calendar size={14} />
+              <span>{formatFechaSalida(ticket)}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Users size={14} />
             <span>{ticket.cantidad} persona{ticket.cantidad !== 1 && "s"}</span>
@@ -96,18 +104,62 @@ function TarjetaTicket({ ticket }) {
   );
 }
 
-function claveDia(ticket) {
-  const fecha = ticket.salida_at || ticket.fecha || ticket.createdAt;
-  if (!fecha) return "sin-fecha";
+function formatFechaSalida(ticket) {
+  if (!ticket.salida_at) return null;
+
+  const fecha = new Date(ticket.salida_at);
+
+  const dia = fecha.toLocaleDateString("es-CR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "America/Costa_Rica",
+  });
+
+  return dia.charAt(0).toUpperCase() + dia.slice(1);
+}
+
+function claveDiaCR(fecha) {
   return new Date(fecha).toLocaleDateString("en-CA", {
     timeZone: "America/Costa_Rica",
   });
 }
 
-function labelDia(clave) {
-  if (clave === "sin-fecha") return "Fecha desconocida";
+function claveDia(ticket) {
+  const fecha = ticket.salida_at || ticket.fecha || ticket.createdAt;
+  if (!fecha) return "sin-fecha";
+  return claveDiaCR(fecha);
+}
+
+function hoyClaveCR() {
+  return claveDiaCR(new Date());
+}
+
+function partesDia(clave) {
+  if (clave === "sin-fecha") return { diaSemana: "?", diaNumero: "?", mes: "" };
   const [y, m, d] = clave.split("-").map(Number);
   const fecha = new Date(y, m - 1, d);
+  return {
+    fecha,
+    diaSemana: fecha.toLocaleDateString("es-CR", { weekday: "short" }).replace(".", ""),
+    diaNumero: fecha.getDate(),
+    mes: fecha.toLocaleDateString("es-CR", { month: "short" }).replace(".", ""),
+  };
+}
+
+function etiquetaDia(clave, hoy) {
+  if (clave === "sin-fecha") return "S/F";
+  const diffMs = new Date(clave) - new Date(hoy);
+  const diffDias = Math.round(diffMs / 86400000);
+  if (diffDias === 0) return "Hoy";
+  if (diffDias === 1) return "Mañana";
+  if (diffDias === -1) return "Ayer";
+  return partesDia(clave).diaSemana;
+}
+
+function labelDiaCompleto(clave) {
+  if (clave === "sin-fecha") return "Fecha desconocida";
+  const { fecha } = partesDia(clave);
   const label = fecha.toLocaleDateString("es-CR", {
     weekday: "long",
     day: "numeric",
@@ -117,6 +169,131 @@ function labelDia(clave) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+function SelectorDiaTickets({ dias, value, onChange }) {
+  const scrollRef = useRef(null);
+  const arrastrando = useRef(false);
+  const inicioX = useRef(0);
+  const inicioScroll = useRef(0);
+  const seMovio = useRef(false);
+  const hoy = hoyClaveCR();
+
+  function desplazar(direccion) {
+    scrollRef.current?.scrollBy({ left: direccion * 160, behavior: "smooth" });
+  }
+
+  function onPointerDown(e) {
+    arrastrando.current = true;
+    seMovio.current = false;
+    inicioX.current = e.clientX;
+    inicioScroll.current = scrollRef.current.scrollLeft;
+  }
+
+  function onPointerMove(e) {
+    if (!arrastrando.current) return;
+    const delta = e.clientX - inicioX.current;
+    if (Math.abs(delta) > 4) seMovio.current = true;
+    scrollRef.current.scrollLeft = inicioScroll.current - delta;
+  }
+
+  function onPointerUp() {
+    arrastrando.current = false;
+  }
+
+  function onClickCapture(e) {
+    if (seMovio.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  return (
+    <div className="relative mb-6 flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => desplazar(-1)}
+        className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted sm:flex"
+        aria-label="Ver días anteriores"
+      >
+        <ChevronLeft size={16} />
+      </button>
+
+      <div className="relative min-w-0 flex-1">
+        <div
+          ref={scrollRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+          onClickCapture={onClickCapture}
+          className="flex cursor-grab gap-2 overflow-x-auto pb-1 pr-8 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className={cn(
+              "flex w-14 shrink-0 flex-col items-center justify-center rounded-lg border px-2 py-2 transition-colors",
+              value === null
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-foreground hover:bg-muted",
+            )}
+          >
+            <span className="text-[11px] font-medium">Todos</span>
+          </button>
+
+          {dias.map((clave) => {
+            const { diaNumero, mes } = partesDia(clave);
+            const activo = value === clave;
+            const esHoy = clave === hoy;
+            return (
+              <button
+                key={clave}
+                type="button"
+                onClick={() => onChange(clave)}
+                className={cn(
+                  "flex w-14 shrink-0 flex-col items-center rounded-lg border px-2 py-2 transition-colors",
+                  activo && esHoy && "border-green-600 bg-green-600 text-white",
+                  activo && !esHoy && "border-primary bg-primary text-primary-foreground",
+                  !activo && esHoy && "border-green-600 text-green-600 hover:bg-green-600/10",
+                  !activo && !esHoy && "border-border text-foreground hover:bg-muted",
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-[11px] capitalize",
+                    activo ? "text-current opacity-80" : esHoy ? "text-green-600" : "text-muted-foreground",
+                  )}
+                >
+                  {etiquetaDia(clave, hoy)}
+                </span>
+                <span className="text-lg font-bold leading-tight">{diaNumero}</span>
+                <span
+                  className={cn(
+                    "text-[10px] capitalize",
+                    activo ? "text-current opacity-80" : esHoy ? "text-green-600" : "text-muted-foreground",
+                  )}
+                >
+                  {mes}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-background to-transparent" />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => desplazar(1)}
+        className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted sm:flex"
+        aria-label="Ver días siguientes"
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  );
+}
+
 export default function Tickets() {
   const { darkMode, toggleDarkMode } = useDarkMode();
   const [tickets, setTickets] = useState([]);
@@ -124,6 +301,7 @@ export default function Tickets() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("activos");
   const [diasAbiertos, setDiasAbiertos] = useState(() => new Set());
+  const [diaSeleccionado, setDiaSeleccionado] = useState(() => hoyClaveCR());
 
   useEffect(() => {
     ticketsService
@@ -133,17 +311,31 @@ export default function Tickets() {
       .finally(() => setLoading(false));
   }, []);
 
+  const diasDisponibles = useMemo(() => {
+    const hoy = hoyClaveCR();
+    const set = new Set(tickets.map(claveDia));
+    set.add(hoy);
+    set.delete("sin-fecha");
+    return Array.from(set).sort();
+  }, [tickets]);
+
+  const ticketsDelDia = useMemo(() => {
+    if (diaSeleccionado === null) return tickets;
+    return tickets.filter((t) => claveDia(t) === diaSeleccionado);
+  }, [tickets, diaSeleccionado]);
+
   const { activos, finalizados } = useMemo(() => {
     const activos = [];
     const finalizados = [];
-    for (const t of tickets) {
+    for (const t of ticketsDelDia) {
       if (esViajeFinalizado(t)) finalizados.push(t);
       else activos.push(t);
     }
     return { activos, finalizados };
-  }, [tickets]);
+  }, [ticketsDelDia]);
 
   const gruposFinalizados = useMemo(() => {
+    if (diaSeleccionado !== null) return null;
     const map = new Map();
     for (const t of finalizados) {
       const clave = claveDia(t);
@@ -152,8 +344,8 @@ export default function Tickets() {
     }
     return Array.from(map.entries())
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-      .map(([clave, tickets]) => ({ clave, label: labelDia(clave), tickets }));
-  }, [finalizados]);
+      .map(([clave, tickets]) => ({ clave, label: labelDiaCompleto(clave), tickets }));
+  }, [finalizados, diaSeleccionado]);
 
   function toggleDia(clave) {
     setDiasAbiertos((prev) => {
@@ -197,6 +389,12 @@ export default function Tickets() {
 
           {!loading && !error && tickets.length > 0 && (
             <>
+              <SelectorDiaTickets
+                dias={diasDisponibles}
+                value={diaSeleccionado}
+                onChange={setDiaSeleccionado}
+              />
+
               <div className="mb-6 flex border-b border-border">
                 <button
                   onClick={() => setTab("activos")}
@@ -226,7 +424,9 @@ export default function Tickets() {
 
               {tab === "activos" && (
                 activos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No tenés viajes activos.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No tenés viajes activos {diaSeleccionado === null ? "" : "para este día"}.
+                  </p>
                 ) : (
                   <div className="flex flex-col gap-4">
                     {activos.map((t) => (
@@ -237,7 +437,19 @@ export default function Tickets() {
               )}
 
               {tab === "finalizados" && (
-                gruposFinalizados.length === 0 ? (
+                diaSeleccionado !== null ? (
+                  finalizados.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No tenés viajes finalizados para este día.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {finalizados.map((t) => (
+                        <TarjetaTicket key={t.id} ticket={t} />
+                      ))}
+                    </div>
+                  )
+                ) : gruposFinalizados.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No tenés viajes finalizados.</p>
                 ) : (
                   <div className="flex flex-col gap-3">
