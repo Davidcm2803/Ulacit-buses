@@ -98,6 +98,7 @@ export default function TicketDetail() {
                 coordenadasRecorrido={ticket.trazado}
                 paradas={ticket.paradas}
                 busPosicion={tracking.posicion}
+                mostrarSeguimiento
               />
 
               <p className="mt-3 text-center text-xs text-muted-foreground">

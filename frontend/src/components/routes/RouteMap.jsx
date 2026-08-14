@@ -40,6 +40,24 @@ const BUS_ICON = new L.Icon({
   popupAnchor: [0, -16],
 });
 
+const UBICACION_USUARIO_ICON = L.divIcon({
+  className: "",
+  html: `
+    <div style="position:relative;width:18px;height:18px;">
+      <div style="position:absolute;inset:-9px;border-radius:9999px;background:rgba(37,99,235,0.25);animation:pulso-ubicacion 1.8s ease-out infinite;"></div>
+      <div style="position:absolute;inset:0;border-radius:9999px;background:#2563eb;border:2px solid white;box-shadow:0 0 2px rgba(0,0,0,0.4);"></div>
+    </div>
+    <style>
+      @keyframes pulso-ubicacion {
+        0% { transform: scale(0.6); opacity: 0.8; }
+        100% { transform: scale(1.8); opacity: 0; }
+      }
+    </style>
+  `,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
 const CR_CENTER = [9.9333, -84.0833];
 const CR_ZOOM = 12;
 const ZOOM_SEGUIMIENTO = 16;
@@ -165,6 +183,7 @@ export default function MapaRutas({
   onSelectParada,
   busPosicion = null,
   mostrarSeguimiento = false,
+  ubicacionUsuario = null,
 }) {
   const [siguiendoBus, setSiguiendoBus] = useState(false);
   const banderaAutoMovimiento = useRef(false);
@@ -261,6 +280,18 @@ export default function MapaRutas({
           >
             <Tooltip direction="top" offset={[0, -10]} permanent={false}>
               <span className="text-xs font-semibold">Tu bus</span>
+            </Tooltip>
+          </Marker>
+        )}
+
+        {ubicacionUsuario && (
+          <Marker
+            position={[ubicacionUsuario.lat, ubicacionUsuario.lng]}
+            icon={UBICACION_USUARIO_ICON}
+            zIndexOffset={900}
+          >
+            <Tooltip direction="top" offset={[0, -8]} permanent={false}>
+              <span className="text-xs font-semibold">Tu ubicación</span>
             </Tooltip>
           </Marker>
         )}

@@ -123,7 +123,7 @@ export default function Home() {
                     Mostrando ruta: {rutaDestacada.nombre}
                     {!seleccionConfirmada && (
                       <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        (sugerida, aún no elegida)
+                        (sugerida)
                       </span>
                     )}
                   </h2>

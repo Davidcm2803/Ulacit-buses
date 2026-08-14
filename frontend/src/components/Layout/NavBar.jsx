@@ -15,7 +15,10 @@ import BottomNav from "./BottomNav";
 import { logout } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 
-const LINKS = [{ label: "Rutas", href: "/rutas" }];
+const LINKS = [
+  { label: "Inicio", href: "/" },
+  { label: "Rutas", href: "/rutas" },
+];
 
 export default function Navbar({ darkMode, toggleDarkMode }) {
   const [showModal, setShowModal] = useState(false);

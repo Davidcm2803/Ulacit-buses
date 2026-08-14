@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trash2, MapPin, Clock, Users, Calendar } from "lucide-react";
+import { Trash2, MapPin, Clock, Users, Calendar, CheckCircle2, Ticket, Navigation } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import Navbar from "../components/layout/NavBar";
@@ -9,7 +9,7 @@ import Button from "../components/ui/Button";
 import PaymentForm from "../components/routes/PaymentForm";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useCart } from "../context/CartContext";
-import { paymentsService } from "../config/api";
+import { paymentsService, ticketsService } from "../config/api";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -22,6 +22,7 @@ export default function Cart() {
   const [loadingIntent, setLoadingIntent] = useState(false);
   const [error, setError] = useState("");
   const [pagado, setPagado] = useState(false);
+  const [ultimaCompra, setUltimaCompra] = useState(null);
 
   const total = item ? item.tarifa * item.cantidad : 0;
 
@@ -48,7 +49,35 @@ export default function Cart() {
 
   async function handlePagoExitoso(paymentIntentId) {
     try {
-      await paymentsService.confirm({ payment_intent_id: paymentIntentId });
+      const resultado = await paymentsService.confirm({ payment_intent_id: paymentIntentId });
+
+      // El shape de la respuesta de /payments/confirm puede variar según el
+      // backend, así que probamos los campos más comunes primero...
+      let ticketId =
+        resultado?.id ??
+        resultado?.ticket_id ??
+        resultado?.ticket?.id ??
+        null;
+
+      // ...y si no vino el id, buscamos entre los tickets del usuario el que
+      // coincide con la compra que acabamos de hacer.
+      if (!ticketId) {
+        try {
+          const misTickets = await ticketsService.getMine();
+          const encontrado = misTickets?.find(
+            (t) =>
+              t.ruta_id === item.rutaId &&
+              t.fecha === item.fecha &&
+              t.horario === item.horario &&
+              t.parada_nombre === item.paradaNombre,
+          );
+          ticketId = encontrado?.id ?? null;
+        } catch {
+          // si esto falla, simplemente no mostramos el botón de seguir viaje
+        }
+      }
+
+      setUltimaCompra({ ...item, ticketId });
       setPagado(true);
       clearCart();
     } catch (e) {
@@ -61,13 +90,59 @@ export default function Cart() {
       <div className={darkMode ? "dark" : ""}>
         <div className="min-h-screen bg-background transition-colors duration-300">
           <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-          <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-            <Card>
-              <h1 className="mb-2 text-2xl font-bold text-foreground">¡Pago exitoso!</h1>
+          <main className="mx-auto max-w-lg px-4 py-16 sm:px-6 lg:px-8">
+            <Card className="flex flex-col items-center text-center">
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
+                <CheckCircle2 size={34} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+
+              <h1 className="mb-2 text-2xl font-bold text-foreground">
+                ¡Listo, tu boleto está confirmado!
+              </h1>
               <p className="mb-6 text-muted-foreground">
-                Tu boleto ha sido comprado correctamente.
+                {ultimaCompra
+                  ? `Ya podés ver los detalles de tu viaje en ${ultimaCompra.rutaNombre} desde "Mis tickets".`
+                  : 'Ya podés ver los detalles de tu viaje desde "Mis tickets".'}
               </p>
-              <Button onClick={() => navigate("/")}>Volver al inicio</Button>
+
+              {ultimaCompra && (
+                <div className="mb-6 w-full rounded-lg border border-border bg-muted/40 p-4 text-left text-sm text-muted-foreground">
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <MapPin size={14} />
+                    <span>{ultimaCompra.paradaNombre}</span>
+                  </div>
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <Calendar size={14} />
+                    <span>{ultimaCompra.fecha}</span>
+                  </div>
+                  <div className={ultimaCompra.ticketId ? "mb-3 flex items-center gap-2" : "flex items-center gap-2"}>
+                    <Clock size={14} />
+                    <span>{ultimaCompra.horario}</span>
+                  </div>
+                  {ultimaCompra.ticketId && (
+                    <button
+                      onClick={() => navigate(`/tickets/${ultimaCompra.ticketId}`)}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+                    >
+                      <Navigation size={14} />
+                      Seguir este viaje
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="flex w-full flex-col gap-2 sm:flex-row">
+                <Button className="flex-1 justify-center" onClick={() => navigate("/tickets")}>
+                  <Ticket size={16} />
+                  Ir a mis tickets
+                </Button>
+                <button
+                  onClick={() => navigate("/")}
+                  className="flex-1 rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                  Volver al inicio
+                </button>
+              </div>
             </Card>
           </main>
         </div>
