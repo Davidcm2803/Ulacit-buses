@@ -53,7 +53,12 @@ export default function AdminDashboard() {
   const inactivas = rutas.length - activas;
 
   const ultimasRutas = [...rutas]
-    .sort((a, b) => new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0))
+    .sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      return (b.id ?? "").localeCompare(a.id ?? "");
+    })
     .slice(0, 6);
 
   return (
